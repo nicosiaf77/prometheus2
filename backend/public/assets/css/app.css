@@ -1,0 +1,169 @@
+:root {
+  --ink: #1f2933;
+  --muted: #667085;
+  --line: #d9e2ec;
+  --surface: #f7f9fb;
+  --nav: #12343b;
+  --accent: #0f766e;
+  --warn: #b7791f;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--surface);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.topbar {
+  display: grid;
+  grid-template-columns: 220px 1fr auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 8px 18px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand,
+.user-menu,
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand {
+  font-weight: 700;
+}
+
+.brand-mark {
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 6px;
+  color: #ffffff;
+  background: var(--nav);
+  border-radius: 6px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-pill.online {
+  color: var(--accent);
+  background: #ecfdf3;
+}
+
+.status-pill.warning {
+  color: var(--warn);
+  background: #fffbeb;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: calc(100vh - 57px);
+}
+
+.sidebar {
+  padding: 18px 12px;
+  background: var(--nav);
+}
+
+.sidebar a {
+  display: block;
+  padding: 9px 10px;
+  color: #e6f0f2;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.sidebar a:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.content {
+  padding: 24px;
+}
+
+.page-title,
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-title h1,
+.panel h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.page-title p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.metrics article,
+.panel {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.metrics article {
+  padding: 14px;
+}
+
+.metrics span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.metrics strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 22px;
+}
+
+.panel {
+  padding: 16px;
+}
+
+@media (max-width: 900px) {
+  .topbar,
+  .workspace,
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .sidebar a {
+    white-space: nowrap;
+  }
+}

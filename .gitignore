@@ -1,0 +1,11 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+!backend/.env.example
+vendor/
+node_modules/
+backend/storage/backups/*
+backend/storage/logs/*
+!backend/storage/backups/.gitkeep
+!backend/storage/logs/.gitkeep

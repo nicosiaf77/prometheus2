@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prometheus2 Frontend</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../assets/css/app.css" rel="stylesheet">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">P2</span><span>Prometheus2</span></div>
+    <div class="status-strip">
+      <span class="status-pill online">Backend</span>
+      <span class="status-pill online">Audit</span>
+      <span class="status-pill warning">Backup</span>
+    </div>
+    <div class="user-menu">
+      <span>nicosiaf77</span>
+      <select class="form-select form-select-sm">
+        <option>Profilo</option>
+        <option>Logout</option>
+      </select>
+    </div>
+  </header>
+  <main class="workspace">
+    <aside class="sidebar">
+      <a href="#">Dashboard</a>
+      <a href="#">Nuovo controllo</a>
+      <a href="#">Ricerca controlli</a>
+      <a href="#">Eventi</a>
+      <a href="#">Categorie</a>
+      <a href="#">Agenti</a>
+      <a href="#">Statistiche</a>
+      <a href="#">Report</a>
+    </aside>
+    <section class="content">
+      <div class="page-title">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Area di lavoro registro controlli</p>
+        </div>
+        <select class="form-select form-select-sm w-auto">
+          <option>Anno corrente</option>
+          <option>Mese corrente</option>
+        </select>
+      </div>
+      <div class="metrics">
+        <article><span>Controlli anno</span><strong>0</strong></article>
+        <article><span>Bozze</span><strong>0</strong></article>
+        <article><span>In accertamento</span><strong>0</strong></article>
+        <article><span>Sanzioni</span><strong>EUR 0,00</strong></article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
