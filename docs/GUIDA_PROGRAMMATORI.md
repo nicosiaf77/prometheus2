@@ -43,9 +43,14 @@ php -S localhost:8080 -t public
 - Lavorare sempre su branch dedicato.
 - Non modificare `main` direttamente.
 - Aprire una pull request per ogni modifica.
+- `nicosiaf77` e' responsabile del backend.
+- `nicosiagiuseppe85` e' responsabile del frontend.
+- Le aree condivise richiedono coordinamento prima della modifica.
 - Prima di analizzare o modificare codice sensibile, fare brainstorm e ottenere autorizzazione dei programmatori.
 - Ogni commit deve descrivere una modifica piccola e verificabile.
 - Non pubblicare mai file `.env`, backup database o dati personali reali.
+
+Le regole dettagliate sono in `docs/COLLABORAZIONE_BACKEND_FRONTEND.md`.
 
 ## Branch consigliati
 

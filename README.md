@@ -34,3 +34,10 @@ Aprire `http://localhost:8080`.
 - `nicosiagiuseppe85`.
 
 La guida di installazione e collaborazione e' in `docs/GUIDA_PROGRAMMATORI.md`.
+
+## Collaborazione backend/frontend
+
+- `nicosiaf77` lavora sul backend.
+- `nicosiagiuseppe85` lavora sul frontend.
+- Le regole per evitare collisioni sono in `docs/COLLABORAZIONE_BACKEND_FRONTEND.md`.
+- Il contratto tra backend e frontend e' in `docs/API_CONTRACT.md`.
