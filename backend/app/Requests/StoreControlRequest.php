@@ -4,18 +4,20 @@ declare(strict_types=1);
 
 namespace Prometheus\Requests;
 
+use Prometheus\Models\Control;
+
 final class StoreControlRequest
 {
     public function rules(): array
     {
         return [
-            'control_date' => ['required', 'date'],
-            'control_time' => ['required'],
-            'has_event' => ['required', 'boolean'],
-            'business_name' => ['required'],
-            'business_location' => ['required'],
+            'control_date'        => ['required', 'date'],
+            'control_time'        => ['required'],
+            'has_event'           => ['required', 'boolean'],
+            'business_name'       => ['required'],
+            'business_location'   => ['required'],
             'primary_category_id' => ['required', 'integer'],
-            'outcome' => ['required', 'in:positivo,negativo,in_accertamento'],
+            'outcome'             => ['required', 'in:' . implode(',', Control::OUTCOMES)],
         ];
     }
 }

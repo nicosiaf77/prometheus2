@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Prometheus\Controllers;
 
 use Prometheus\Core\Controller;
+use Prometheus\Models\User;
 use Prometheus\Core\Request;
 use Prometheus\Core\Response;
 use Prometheus\Services\ReportService;
@@ -14,7 +15,7 @@ final class ReportController extends Controller
 {
     public function index(): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 
@@ -52,7 +53,7 @@ final class ReportController extends Controller
 
     public function statisticsPdf(): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 
@@ -82,7 +83,7 @@ final class ReportController extends Controller
 
     private function exportResponse(string $method, string $contentType): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 

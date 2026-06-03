@@ -6,6 +6,7 @@ namespace Prometheus\Controllers;
 
 use PDO;
 use Prometheus\Core\Controller;
+use Prometheus\Models\User;
 use Prometheus\Core\Database;
 use Prometheus\Core\Request;
 use Prometheus\Core\Response;
@@ -22,7 +23,7 @@ final class UserController extends Controller
 {
     public function index(): Response
     {
-        if ($response = $this->requireRoles(['amministratore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN])) {
             return $response;
         }
 
@@ -34,7 +35,7 @@ final class UserController extends Controller
 
     public function show(string $user): Response
     {
-        if ($response = $this->requireRoles(['amministratore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN])) {
             return $response;
         }
 
@@ -53,7 +54,7 @@ final class UserController extends Controller
 
     public function store(): Response
     {
-        if ($response = $this->requireRoles(['amministratore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN])) {
             return $response;
         }
 
@@ -104,7 +105,7 @@ final class UserController extends Controller
 
     public function update(string $user): Response
     {
-        if ($response = $this->requireRoles(['amministratore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN])) {
             return $response;
         }
 
@@ -164,7 +165,7 @@ final class UserController extends Controller
 
     public function changePassword(string $user): Response
     {
-        if ($response = $this->requireRoles(['amministratore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN])) {
             return $response;
         }
 
@@ -267,7 +268,7 @@ final class UserController extends Controller
 
     private function toggleActive(string $user, bool $active): Response
     {
-        if ($response = $this->requireRoles(['amministratore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN])) {
             return $response;
         }
 

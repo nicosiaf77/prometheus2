@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Prometheus\Services;
 
+use PDO;
 use Prometheus\Core\Database;
 use Prometheus\Core\Env;
-use PDO;
+use Prometheus\Models\Control;
 use Throwable;
 
 final class ControlService
@@ -346,7 +347,7 @@ final class ControlService
                 'weapon_precautionary_withdrawal' => (int) $data['weapon_precautionary_withdrawal'],
                 'weapon_precautionary_withdrawal_description' => $data['weapon_precautionary_withdrawal_description'] !== '' ? $data['weapon_precautionary_withdrawal_description'] : null,
                 'notes_encrypted' => $encrypted['notes'],
-                'status' => 'bozza',
+                'status' => Control::STATUS_DRAFT,
                 'hash_record' => $hash,
                 'created_by' => $userId,
             ]);
@@ -379,7 +380,7 @@ final class ControlService
                 throw new \RuntimeException('Controllo non trovato.');
             }
 
-            if ($control['status'] === 'annullato') {
+            if ($control['status'] === Control::STATUS_ANNULLED) {
                 throw new \RuntimeException('Un controllo annullato non può essere modificato.');
             }
 
@@ -497,17 +498,17 @@ final class ControlService
                 throw new \RuntimeException('Controllo non trovato.');
             }
 
-            if ($control['status'] === 'annullato') {
+            if ($control['status'] === Control::STATUS_ANNULLED) {
                 throw new \RuntimeException('Un controllo annullato non puo essere validato.');
             }
 
-            if ($control['status'] === 'validato') {
+            if ($control['status'] === Control::STATUS_VALIDATED) {
                 throw new \RuntimeException('Il controllo risulta gia validato.');
             }
 
             $previousHash = (string) $control['hash_record'];
             $snapshot = array_merge($control, [
-                'status' => 'validato',
+                'status' => Control::STATUS_VALIDATED,
                 'validated_by' => $userId,
                 'validated_at' => date('Y-m-d H:i:s'),
             ]);
@@ -524,7 +525,7 @@ final class ControlService
                      updated_at = NOW()
                  WHERE id = :id'
             )->execute([
-                'status' => 'validato',
+                'status' => Control::STATUS_VALIDATED,
                 'validated_by' => $userId,
                 'updated_by' => $userId,
                 'hash_record' => $newHash,
@@ -560,13 +561,13 @@ final class ControlService
                 throw new \RuntimeException('Controllo non trovato.');
             }
 
-            if ($control['status'] === 'annullato') {
+            if ($control['status'] === Control::STATUS_ANNULLED) {
                 throw new \RuntimeException('Il controllo risulta gia annullato.');
             }
 
             $previousHash = (string) $control['hash_record'];
             $snapshot = array_merge($control, [
-                'status' => 'annullato',
+                'status' => Control::STATUS_ANNULLED,
                 'annulled_by' => $userId,
                 'annulled_at' => date('Y-m-d H:i:s'),
                 'annulment_reason' => $reason,
@@ -585,7 +586,7 @@ final class ControlService
                      updated_at = NOW()
                  WHERE id = :id'
             )->execute([
-                'status' => 'annullato',
+                'status' => Control::STATUS_ANNULLED,
                 'annulled_by' => $userId,
                 'annulment_reason' => $reason,
                 'updated_by' => $userId,

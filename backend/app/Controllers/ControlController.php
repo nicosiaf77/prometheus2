@@ -15,6 +15,8 @@ use Prometheus\Services\ActivityCategoryService;
 use Prometheus\Services\AgentService;
 use Prometheus\Services\AuditActions;
 use Prometheus\Services\AuditService;
+use Prometheus\Models\Control;
+use Prometheus\Models\User;
 use Prometheus\Services\ControlService;
 use Prometheus\Services\EventService;
 use Throwable;
@@ -45,7 +47,7 @@ final class ControlController extends Controller
 
     public function create(): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio', 'operatore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER, User::ROLE_OPERATOR])) {
             return $response;
         }
 
@@ -61,7 +63,7 @@ final class ControlController extends Controller
                 'criminal_seizure' => 0,
                 'weapon_precautionary_withdrawal' => 0,
             ],
-            'accepted_outcomes' => ['positivo', 'negativo', 'in_accertamento'],
+            'accepted_outcomes' => [...Control::OUTCOMES],
             'categories' => (new ActivityCategoryService())->active(),
             'agents' => (new AgentService())->all(),
             'events' => (new EventService())->all(),
@@ -103,7 +105,7 @@ final class ControlController extends Controller
 
     public function store(): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio', 'operatore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER, User::ROLE_OPERATOR])) {
             return $response;
         }
 
@@ -141,7 +143,7 @@ final class ControlController extends Controller
 
     public function edit(string $control): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio', 'operatore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER, User::ROLE_OPERATOR])) {
             return $response;
         }
 
@@ -155,12 +157,12 @@ final class ControlController extends Controller
             return $this->error('Controllo non trovato.', 404);
         }
 
-        if ($controlData['status'] === 'annullato') {
+        if ($controlData['status'] === Control::STATUS_ANNULLED) {
             return $this->error('Un controllo annullato non può essere modificato.', 422);
         }
 
-        if ($controlData['status'] === 'validato'
-            && !$this->auth()->hasRole(['amministratore', 'responsabile_ufficio'])
+        if ($controlData['status'] === Control::STATUS_VALIDATED
+            && !$this->auth()->hasRole([User::ROLE_ADMIN, User::ROLE_MANAGER])
         ) {
             return $this->error('Solo amministratore o responsabile ufficio può modificare un controllo validato.', 403);
         }
@@ -169,7 +171,7 @@ final class ControlController extends Controller
             'ok'       => true,
             'control'  => $controlData,
             'metadata' => [
-                'accepted_outcomes' => ['positivo', 'negativo', 'in_accertamento'],
+                'accepted_outcomes' => [...Control::OUTCOMES],
                 'categories'        => (new ActivityCategoryService())->active(),
                 'agents'            => (new AgentService())->active(),
                 'events'            => (new EventService())->all(),
@@ -183,7 +185,7 @@ final class ControlController extends Controller
 
     public function pdf(string $control): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 
@@ -235,7 +237,7 @@ final class ControlController extends Controller
 
     public function update(string $control): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio', 'operatore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER, User::ROLE_OPERATOR])) {
             return $response;
         }
 
@@ -271,11 +273,11 @@ final class ControlController extends Controller
             return $this->error('Controllo non trovato.', 404);
         }
 
-        if ($existing['status'] === 'annullato') {
+        if ($existing['status'] === Control::STATUS_ANNULLED) {
             return $this->error('Un controllo annullato non può essere modificato.', 422);
         }
 
-        if ($existing['status'] === 'validato' && !$this->auth()->hasRole(['amministratore', 'responsabile_ufficio'])) {
+        if ($existing['status'] === Control::STATUS_VALIDATED && !$this->auth()->hasRole([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $this->error('Solo amministratore o responsabile ufficio può modificare un controllo validato.', 403);
         }
 
@@ -294,7 +296,7 @@ final class ControlController extends Controller
 
     public function validate(string $control): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 
@@ -325,7 +327,7 @@ final class ControlController extends Controller
 
     public function annul(string $control): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 
@@ -428,7 +430,7 @@ final class ControlController extends Controller
 
     private function availableActions(array $control): array
     {
-        if (!$this->auth()->hasRole(['amministratore', 'responsabile_ufficio']) || $control['status'] === 'annullato') {
+        if (!$this->auth()->hasRole([User::ROLE_ADMIN, User::ROLE_MANAGER]) || $control['status'] === Control::STATUS_ANNULLED) {
             return [];
         }
 
@@ -441,7 +443,7 @@ final class ControlController extends Controller
             ],
         ];
 
-        if ($control['status'] === 'bozza') {
+        if ($control['status'] === Control::STATUS_DRAFT) {
             array_unshift($actions, [
                 'name' => 'validate',
                 'method' => 'POST',

@@ -14,6 +14,8 @@
     "serve": "php -S localhost:8080 -t public public/router.php",
     "migrate": "php scripts/migrate.php",
     "seed": "php scripts/seed.php",
-    "create-admin": "php scripts/create_admin.php"
+    "create-admin": "php scripts/create_admin.php",
+    "test:smoke": "php tests/smoke.php",
+    "test:roles": "php tests/roles.php"
   }
 }
