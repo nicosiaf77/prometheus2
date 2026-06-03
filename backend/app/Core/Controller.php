@@ -18,6 +18,32 @@ abstract class Controller
         return Response::redirect($path);
     }
 
+    protected function e(mixed $value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
+
+    protected function csrfField(): string
+    {
+        $token = Session::csrfToken();
+
+        return '<input type="hidden" name="_csrf_token" value="' . $this->e($token) . '">';
+    }
+
+    protected function flash(?string $message = null): ?string
+    {
+        if ($message !== null) {
+            Session::put('flash_message', $message);
+
+            return null;
+        }
+
+        $current = Session::get('flash_message');
+        Session::forget('flash_message');
+
+        return is_string($current) ? $current : null;
+    }
+
     protected function requireAuth(): ?Response
     {
         if ($this->auth()->check()) {

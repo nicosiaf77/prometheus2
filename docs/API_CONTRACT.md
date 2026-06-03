@@ -45,7 +45,13 @@ POST /controls/{control}/annul
 GET /events
 GET /activity-categories
 GET /agents
+POST /events
+POST /agents
 ```
+
+`POST /events` crea un evento semplice con campo `name`. Permessi: amministratore, responsabile ufficio, operatore.
+
+`POST /agents` crea un agente con `surname`, `name`, `rank`, `office`. Permessi: amministratore, responsabile ufficio.
 
 ### Report e statistiche
 

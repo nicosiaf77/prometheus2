@@ -184,6 +184,19 @@ body {
   gap: 10px;
 }
 
+.compact-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+@media (max-width: 900px) {
+  .compact-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .topbar,
   .workspace,
