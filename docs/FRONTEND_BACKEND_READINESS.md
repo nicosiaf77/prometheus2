@@ -39,12 +39,12 @@ Il backend e ora utilizzabile come API pura JSON/CSV. Non contiene GUI operativa
 
 | Area | Criticità | Priorità |
 |---|---|---:|
-| Contratto risposte | Le risposte JSON esistono, ma mancano esempi completi request/response per ogni endpoint. | Alta |
-| Errori validazione | Gli errori sono coerenti (`ok: false`, `error`), ma non ancora strutturati per campo (`errors.field`). | Alta |
+| Contratto risposte | Le risposte JSON esistono, OpenAPI iniziale presente, ma mancano esempi completi per ogni endpoint. | Alta |
+| Errori validazione | Introdotti `code` ed `errors` per campo su controlli/utenti; da estendere a tutte le POST. | Alta |
 | Sessione frontend | Login usa cookie sessione; CORS e cookie credentials sono configurabili da `.env`. | Alta |
 | CORS | Configurato per origini definite in `CORS_ALLOWED_ORIGINS`; da validare con la porta frontend definitiva. | Alta |
-| OpenAPI/Swagger | Manca specifica machine-readable per generare client frontend o validare payload. | Media |
-| Script database | Esistono SQL migration/seeder, ma manca comando PHP/Composer `migrate`/`seed` facile per nuovi sviluppatori. | Media |
+| OpenAPI/Swagger | Specifica iniziale presente in `docs/openapi.yaml`; da completare con schema dettagliato risposte. | Media |
+| Script database | Disponibili `composer migrate` e `composer seed`; manca rollback migrazioni. | Media |
 
 ## Da sviluppare per completare integrazione frontend
 

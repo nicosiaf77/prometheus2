@@ -25,7 +25,12 @@ abstract class Controller
 
     protected function error(string $message, int $status = 400, array $extra = []): Response
     {
-        return $this->json(['ok' => false, 'error' => $message] + $extra, $status);
+        return $this->json(['ok' => false, 'error' => $message, 'code' => $status] + $extra, $status);
+    }
+
+    protected function validationError(array $errors): Response
+    {
+        return $this->error('Validazione non riuscita.', 422, ['errors' => $errors]);
     }
 
     protected function flash(?string $message = null): ?string

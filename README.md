@@ -28,6 +28,16 @@ composer serve
 
 Endpoint diagnostico: `http://localhost:8080/login`.
 
+## Database locale
+
+```bash
+cd backend
+composer migrate
+composer seed
+```
+
+`composer seed` non reinserisce dati se le categorie sono gia presenti. Usare `php scripts/seed.php --force` solo quando si vuole forzare il seed.
+
 Per frontend locale su porta diversa, configurare in `backend/.env`:
 
 ```bash
@@ -65,3 +75,4 @@ La guida di installazione e collaborazione e' in `docs/GUIDA_PROGRAMMATORI.md`.
 - Le regole per evitare collisioni sono in `docs/COLLABORAZIONE_BACKEND_FRONTEND.md`.
 - Il contratto tra backend e frontend e' in `docs/API_CONTRACT.md`.
 - Lo stato delle API pronte per il frontend e' in `docs/FRONTEND_BACKEND_READINESS.md`.
+- La specifica OpenAPI iniziale e' in `docs/openapi.yaml`.

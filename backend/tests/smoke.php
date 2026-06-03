@@ -86,6 +86,23 @@ $login = request('POST', '/login', [
 ]);
 assertStatus('login', $login);
 
+$invalidControl = request('POST', '/controls', [
+    '_csrf_token' => $token,
+    'control_date' => '',
+    'control_time' => '',
+    'has_event' => '2',
+    'business_name' => '',
+    'business_location' => '',
+    'primary_category_id' => '',
+    'outcome' => 'non_valido',
+]);
+assertStatus('validazione controllo strutturata', $invalidControl, [422, 403]);
+
+if ($invalidControl['status'] === 422 && !isset($invalidControl['json']['errors'])) {
+    fwrite(STDERR, "KO validazione controllo: manca errors per campo\n");
+    exit(1);
+}
+
 $endpoints = [
     'utente corrente' => '/me',
     'dashboard' => '/dashboard',

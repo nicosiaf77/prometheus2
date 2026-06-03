@@ -6,6 +6,8 @@ Prima di implementare una nuova schermata o una nuova funzione, backend e fronte
 
 Lo stato operativo di cosa e gia pronto per il frontend e cosa resta da sviluppare e riepilogato in `docs/FRONTEND_BACKEND_READINESS.md`.
 
+La specifica machine-readable iniziale e in `docs/openapi.yaml`.
+
 ## Stato
 
 Backend riallineato come API pura. Il backend non espone pagine operative HTML; eventuali HTML/PHP di validazione stanno solo in `backend/tests`.
@@ -16,7 +18,7 @@ Backend riallineato come API pura. Il backend non espone pagine operative HTML; 
 - Date: `YYYY-MM-DD`.
 - Orari: `HH:MM`.
 - Importi: numeri decimali con due cifre.
-- Errori: risposta JSON con `ok: false`, `error` e, se presenti, dettagli aggiuntivi.
+- Errori: risposta JSON con `ok: false`, `error`, `code` e, se presenti, `errors` per campo.
 - CSRF: per le chiamate `POST`, leggere prima `GET /csrf-token` e inviare `_csrf_token`.
 - Login: dopo 5 tentativi falliti negli ultimi 15 minuti per stesso identificativo/IP, il backend rallenta e nega temporaneamente nuovi tentativi.
 

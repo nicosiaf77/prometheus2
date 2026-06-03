@@ -8,6 +8,8 @@ use Prometheus\Core\Controller;
 use Prometheus\Core\Request;
 use Prometheus\Core\Response;
 use Prometheus\Core\Session;
+use Prometheus\Core\Validator;
+use Prometheus\Requests\StoreUserRequest;
 use Prometheus\Services\AuditActions;
 use Prometheus\Services\AuditService;
 use Prometheus\Services\UserService;
@@ -48,8 +50,10 @@ final class UserController extends Controller
             'role' => $request->input('role', '') ?? '',
         ];
 
-        if ($this->invalid($data)) {
-            return $this->error('Tutti i campi utente sono obbligatori e il ruolo deve essere valido.', 422);
+        $errors = (new Validator())->validate($data, (new StoreUserRequest())->rules());
+
+        if ($errors !== []) {
+            return $this->validationError($errors);
         }
 
         try {
@@ -66,15 +70,4 @@ final class UserController extends Controller
         ], 201);
     }
 
-    private function invalid(array $data): bool
-    {
-        $roles = ['amministratore', 'responsabile_ufficio', 'operatore', 'lettore'];
-
-        return $data['name'] === ''
-            || $data['surname'] === ''
-            || $data['email'] === ''
-            || $data['username'] === ''
-            || $data['password'] === ''
-            || !in_array($data['role'], $roles, true);
-    }
 }

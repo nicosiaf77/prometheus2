@@ -8,6 +8,8 @@ use Prometheus\Core\Controller;
 use Prometheus\Core\Request;
 use Prometheus\Core\Response;
 use Prometheus\Core\Session;
+use Prometheus\Core\Validator;
+use Prometheus\Requests\StoreControlRequest;
 use Prometheus\Services\ActivityCategoryService;
 use Prometheus\Services\AgentService;
 use Prometheus\Services\AuditActions;
@@ -112,10 +114,15 @@ final class ControlController extends Controller
 
         $user = $this->auth()->user();
         $data = $this->controlData($request);
-        $validationError = $this->validateControlData($data);
+        $errors = (new Validator())->validate($data, (new StoreControlRequest())->rules());
+        $errors = $this->withControlConditionalErrors($data, $errors);
 
-        if ($user === null || $validationError !== null) {
-            return $this->error($validationError ?? 'Utente non valido.', 422);
+        if ($user === null) {
+            return $this->error('Utente non valido.', 422);
+        }
+
+        if ($errors !== []) {
+            return $this->validationError($errors);
         }
 
         try {
@@ -232,29 +239,13 @@ final class ControlController extends Controller
         ];
     }
 
-    private function validateControlData(array $data): ?string
+    private function withControlConditionalErrors(array $data, array $errors): array
     {
-        if ($data['control_date'] === '' || $data['control_time'] === '') {
-            return 'Data e ora controllo sono obbligatorie.';
-        }
-
         if ((int) $data['has_event'] === 1 && trim((string) $data['event_name']) === '') {
-            return 'Il nome evento e obbligatorio quando il controllo e collegato a evento.';
+            $errors['event_name'][] = 'Il nome evento e obbligatorio quando il controllo e collegato a evento.';
         }
 
-        if ($data['business_name'] === '' || $data['business_location'] === '') {
-            return 'Nome e luogo attivita sono obbligatori.';
-        }
-
-        if (!ctype_digit((string) $data['primary_category_id'])) {
-            return 'La categoria principale e obbligatoria.';
-        }
-
-        if (!in_array($data['outcome'], ['positivo', 'negativo', 'in_accertamento'], true)) {
-            return 'Esito controllo non valido.';
-        }
-
-        return null;
+        return $errors;
     }
 
     private function searchFilters(Request $request): array
