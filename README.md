@@ -4,7 +4,7 @@ Registro elettronico dei controlli amministrativi per la Squadra Amministrativa 
 
 ## Struttura
 
-- `backend`: framework PHP personale Prometheus, con convenzioni ispirate a Laravel.
+- `backend`: framework PHP personale Prometheus, con convenzioni ispirate a Laravel, esposto come API JSON/CSV senza GUI operativa.
 - `frontend`: GUI HTML5, Bootstrap e JavaScript, semplice e professionale.
 - `docs`: guide operative, roadmap e specifiche tecniche.
 
@@ -17,16 +17,24 @@ Registro elettronico dei controlli amministrativi per la Squadra Amministrativa 
 - nessuna cancellazione fisica dei controlli;
 - audit log, versionamento e hash chain come requisiti centrali.
 
-## Avvio backend locale
+## Avvio backend locale API
 
 ```bash
 cd backend
 composer install
 cp .env.example .env
-php -S localhost:8080 -t public public/router.php
+composer serve
 ```
 
-Aprire `http://localhost:8080`.
+Endpoint diagnostico: `http://localhost:8080/login`.
+
+## Test backend manuale
+
+```bash
+php -S localhost:8081 -t /Volumes/AIProjects/Projects/prometheus2/backend/tests
+```
+
+Aprire `http://localhost:8081`. La console HTML/PHP di test vive in `backend/tests` e non fa parte della GUI frontend.
 
 ## Creazione amministratore locale
 

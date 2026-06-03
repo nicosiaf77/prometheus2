@@ -13,6 +13,12 @@ Il backend usa un framework personale chiamato Prometheus:
 - `database/migrations` per schema;
 - `database/seeders` per dati iniziali.
 
+Il backend deve restare backend puro: controller e servizi restituiscono JSON o file dati dichiarati, come CSV. Non devono contenere GUI, template HTML o form operativi.
+
+## Test backend
+
+`backend/tests` contiene strumenti PHP/HTML di verifica manuale e smoke test CLI. Questa cartella non e parte del frontend di prodotto.
+
 ## Frontend
 
 Interfaccia Bootstrap con:

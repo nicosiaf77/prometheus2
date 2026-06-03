@@ -13,34 +13,20 @@ final class AuthController extends Controller
 {
     public function showLogin(): Response
     {
-        if ($this->auth()->check()) {
-            return $this->redirect('/dashboard');
-        }
+        return $this->json([
+            'ok' => true,
+            'message' => 'Backend API Prometheus2. Usa POST /login con identifier, password e _csrf_token.',
+            'authenticated' => $this->auth()->check(),
+            'csrf_token_endpoint' => '/csrf-token',
+        ]);
+    }
 
-        $error = Session::get('login_error');
-        Session::forget('login_error');
-        $errorHtml = is_string($error) ? '<div class="alert alert-danger py-2">' . htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . '</div>' : '';
-        $csrf = Session::csrfToken();
-        $content = <<<HTML
-        <main class="login-shell">
-            <section class="login-panel">
-                <div class="brand login-brand"><span class="brand-mark">P2</span><span>Prometheus2</span></div>
-                <h1>Accesso backend</h1>
-                <p>Area riservata agli operatori autorizzati.</p>
-                {$errorHtml}
-                <form method="post" action="/login" class="login-form">
-                    <input type="hidden" name="_csrf_token" value="{$csrf}">
-                    <label class="form-label" for="identifier">Username o email</label>
-                    <input class="form-control" id="identifier" name="identifier" autocomplete="username" required>
-                    <label class="form-label" for="password">Password</label>
-                    <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
-                    <button class="btn btn-primary btn-sm" type="submit">Accedi</button>
-                </form>
-            </section>
-        </main>
-        HTML;
-
-        return $this->view('Login', $content);
+    public function csrfToken(): Response
+    {
+        return $this->json([
+            'ok' => true,
+            'csrf_token' => Session::csrfToken(),
+        ]);
     }
 
     public function login(): Response
@@ -48,21 +34,21 @@ final class AuthController extends Controller
         $request = new Request();
 
         if (!Session::validateCsrf($request->input('_csrf_token'))) {
-            Session::put('login_error', 'Sessione non valida. Riprovare.');
-
-            return $this->redirect('/login');
+            return $this->error('Sessione non valida.', 419);
         }
 
         $identifier = $request->input('identifier', '') ?? '';
         $password = $request->input('password', '') ?? '';
 
         if ($identifier === '' || $password === '' || !$this->auth()->login($identifier, $password)) {
-            Session::put('login_error', 'Credenziali non valide.');
-
-            return $this->redirect('/login');
+            return $this->error('Credenziali non valide.', 401);
         }
 
-        return $this->redirect('/dashboard');
+        return $this->json([
+            'ok' => true,
+            'message' => 'Login effettuato.',
+            'user' => $this->auth()->user(),
+        ]);
     }
 
     public function logout(): Response
@@ -70,11 +56,14 @@ final class AuthController extends Controller
         $request = new Request();
 
         if (!Session::validateCsrf($request->input('_csrf_token'))) {
-            return $this->redirect('/dashboard');
+            return $this->error('Sessione non valida.', 419);
         }
 
         $this->auth()->logout();
 
-        return $this->redirect('/login');
+        return $this->json([
+            'ok' => true,
+            'message' => 'Logout effettuato.',
+        ]);
     }
 }

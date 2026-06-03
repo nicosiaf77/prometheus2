@@ -6,18 +6,32 @@ Prima di implementare una nuova schermata o una nuova funzione, backend e fronte
 
 ## Stato
 
-Fase iniziale. Le API definitive saranno definite step by step.
+Backend riallineato come API pura. Il backend non espone pagine operative HTML; eventuali HTML/PHP di validazione stanno solo in `backend/tests`.
 
 ## Convenzioni
 
-- Formato dati: JSON.
+- Formato dati: JSON, salvo export CSV dichiarati.
 - Date: `YYYY-MM-DD`.
 - Orari: `HH:MM`.
 - Importi: numeri decimali con due cifre.
-- Errori: risposta JSON con `message` e, se presenti, `errors`.
+- Errori: risposta JSON con `ok: false`, `error` e, se presenti, dettagli aggiuntivi.
+- CSRF: per le chiamate `POST`, leggere prima `GET /csrf-token` e inviare `_csrf_token`.
 - Login: dopo 5 tentativi falliti negli ultimi 15 minuti per stesso identificativo/IP, il backend rallenta e nega temporaneamente nuovi tentativi.
 
 ## Rotte previste
+
+### Autenticazione
+
+```text
+GET /login
+GET /csrf-token
+POST /login
+POST /logout
+```
+
+`GET /login` restituisce informazioni API, non una pagina HTML.
+
+`POST /login` accetta `identifier`, `password`, `_csrf_token` e restituisce utente connesso.
 
 ### Dashboard
 
@@ -25,7 +39,7 @@ Fase iniziale. Le API definitive saranno definite step by step.
 GET /dashboard
 ```
 
-Scopo: mostrare area iniziale e riepiloghi.
+Scopo: restituire utente connesso e riepiloghi backend.
 
 ### Controlli
 
@@ -40,7 +54,7 @@ POST /controls/{control}/annul
 
 `POST /controls` crea un controllo in stato `bozza`, assegna numero registro progressivo per anno, collega evento/categorie/agenti e genera hash/versione iniziale. Permessi: amministratore, responsabile ufficio, operatore.
 
-`GET /controls/{control}` mostra dettaglio controllo, dati cifrati decifrati, categorie, agenti, hash e versioni. Permessi: utenti autenticati.
+`GET /controls/{control}` restituisce dettaglio controllo, dati cifrati decifrati, categorie, agenti, hash, versioni e azioni disponibili. Permessi: utenti autenticati.
 
 `GET /controls` accetta filtri query: `registry_number`, `registry_year`, `date_from`, `date_to`, `has_event`, `event_name`, `business_name`, `business_location`, `category_id`, `agent_id`, `outcome`, `status`, `sanction_presence`.
 
@@ -70,7 +84,7 @@ GET /reports
 GET /reports/controls.csv
 ```
 
-`GET /statistics` accetta filtri query `year`, `month`, `date_from`, `date_to`, `outcome` e restituisce dashboard HTML con aggregati backend.
+`GET /statistics` accetta filtri query `year`, `month`, `date_from`, `date_to`, `outcome` e restituisce aggregati JSON backend.
 
 `GET /reports/controls.csv` esporta CSV controlli con gli stessi filtri principali di `GET /controls`, registra tabella `exports` e audit log. Permessi: amministratore, responsabile ufficio.
 
@@ -91,7 +105,17 @@ POST /integrity-check
 
 `GET /users` e `POST /users` gestiscono utenti applicativi. Permessi: amministratore.
 
-`GET /audit-logs` mostra le ultime operazioni registrate. Permessi: amministratore, responsabile ufficio.
+`GET /audit-logs` restituisce le ultime operazioni registrate. Permessi: amministratore, responsabile ufficio.
+
+## Test backend
+
+Gli strumenti di validazione manuale e automatica stanno in:
+
+```text
+backend/tests
+```
+
+Questa cartella puo contenere PHP, HTML, CSS e JavaScript solo per testare le API. Non e codice frontend di prodotto.
 
 ## Regola di modifica
 

@@ -6,22 +6,47 @@ namespace Prometheus\Core;
 
 final class Request
 {
+    private ?array $jsonPayload = null;
+
     public function input(string $key, ?string $default = null): ?string
     {
-        $value = $_POST[$key] ?? $_GET[$key] ?? $default;
+        $payload = $this->json();
+        $value = $_POST[$key] ?? $_GET[$key] ?? $payload[$key] ?? $default;
 
         return is_string($value) ? trim($value) : $default;
     }
 
     public function array(string $key): array
     {
-        $value = $_POST[$key] ?? $_GET[$key] ?? [];
+        $payload = $this->json();
+        $value = $_POST[$key] ?? $_GET[$key] ?? $payload[$key] ?? [];
 
         if (!is_array($value)) {
             return [];
         }
 
         return array_values(array_filter($value, static fn (mixed $item): bool => is_scalar($item) && trim((string) $item) !== ''));
+    }
+
+    public function json(): array
+    {
+        if ($this->jsonPayload !== null) {
+            return $this->jsonPayload;
+        }
+
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+
+        if (!str_contains(strtolower($contentType), 'application/json')) {
+            $this->jsonPayload = [];
+
+            return $this->jsonPayload;
+        }
+
+        $rawBody = file_get_contents('php://input');
+        $decoded = is_string($rawBody) && $rawBody !== '' ? json_decode($rawBody, true) : [];
+        $this->jsonPayload = is_array($decoded) ? $decoded : [];
+
+        return $this->jsonPayload;
     }
 
     public function ip(): ?string

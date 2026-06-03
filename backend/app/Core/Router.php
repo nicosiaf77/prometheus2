@@ -42,7 +42,7 @@ final class Router
         }
 
         if ($handler === null) {
-            return new Response('<h1>404</h1><p>Pagina non trovata.</p>', 404);
+            return Response::json(['ok' => false, 'error' => 'Endpoint non trovato.'], 404);
         }
 
         [$controllerClass, $action] = $handler;

@@ -21,60 +21,10 @@ final class UserController extends Controller
             return $response;
         }
 
-        $users = (new UserService())->all();
-        $flash = $this->flash();
-        $flashHtml = $flash !== null ? '<div class="alert alert-info py-2">' . $this->e($flash) . '</div>' : '';
-        $rows = '';
-
-        foreach ($users as $user) {
-            $rows .= '<tr>'
-                . '<td>' . $this->e($user['surname']) . '</td>'
-                . '<td>' . $this->e($user['name']) . '</td>'
-                . '<td>' . $this->e($user['username']) . '</td>'
-                . '<td>' . $this->e($user['email']) . '</td>'
-                . '<td>' . $this->e($user['role']) . '</td>'
-                . '<td>' . ((int) $user['active'] === 1 ? 'Attivo' : 'Disattivo') . '</td>'
-                . '<td>' . $this->e($user['last_login_at'] ?? '') . '</td>'
-                . '</tr>';
-        }
-
-        $csrf = $this->csrfField();
-        $content = <<<HTML
-        <main class="container py-4">
-            <div class="page-title">
-                <div>
-                    <h1>Utenti</h1>
-                    <p>Gestione utenti riservata agli amministratori.</p>
-                </div>
-            </div>
-            {$flashHtml}
-            <div class="panel mb-3">
-                <form method="post" action="/users" class="filter-form">
-                    {$csrf}
-                    <input class="form-control form-control-sm" name="surname" placeholder="Cognome" required>
-                    <input class="form-control form-control-sm" name="name" placeholder="Nome" required>
-                    <input class="form-control form-control-sm" name="username" placeholder="Username" required>
-                    <input class="form-control form-control-sm" type="email" name="email" placeholder="Email" required>
-                    <input class="form-control form-control-sm" type="password" name="password" placeholder="Password temporanea" required>
-                    <select class="form-select form-select-sm" name="role" required>
-                        <option value="amministratore">Amministratore</option>
-                        <option value="responsabile_ufficio">Responsabile ufficio</option>
-                        <option value="operatore">Operatore</option>
-                        <option value="lettore">Lettore</option>
-                    </select>
-                    <button class="btn btn-sm btn-primary" type="submit">Crea utente</button>
-                </form>
-            </div>
-            <div class="panel">
-                <table class="table table-sm align-middle">
-                    <thead><tr><th>Cognome</th><th>Nome</th><th>Username</th><th>Email</th><th>Ruolo</th><th>Stato</th><th>Ultimo login</th></tr></thead>
-                    <tbody>{$rows}</tbody>
-                </table>
-            </div>
-        </main>
-        HTML;
-
-        return $this->view('Utenti', $content);
+        return $this->json([
+            'ok' => true,
+            'users' => (new UserService())->all(),
+        ]);
     }
 
     public function store(): Response
@@ -86,7 +36,7 @@ final class UserController extends Controller
         $request = new Request();
 
         if (!Session::validateCsrf($request->input('_csrf_token'))) {
-            return new Response('Sessione non valida.', 419);
+            return $this->error('Sessione non valida.', 419);
         }
 
         $data = [
@@ -99,20 +49,21 @@ final class UserController extends Controller
         ];
 
         if ($this->invalid($data)) {
-            $this->flash('Tutti i campi utente sono obbligatori e il ruolo deve essere valido.');
-
-            return $this->redirect('/users');
+            return $this->error('Tutti i campi utente sono obbligatori e il ruolo deve essere valido.', 422);
         }
 
         try {
             $userId = (new UserService())->create($data);
             (new AuditService())->record(AuditActions::USER_CREATED, 'users', $userId, 'Utente creato: ' . $data['username']);
-            $this->flash('Utente creato correttamente.');
         } catch (Throwable $exception) {
-            $this->flash('Creazione utente non riuscita: ' . $exception->getMessage());
+            return $this->error('Creazione utente non riuscita: ' . $exception->getMessage(), 500);
         }
 
-        return $this->redirect('/users');
+        return $this->json([
+            'ok' => true,
+            'message' => 'Utente creato correttamente.',
+            'user_id' => $userId,
+        ], 201);
     }
 
     private function invalid(array $data): bool
