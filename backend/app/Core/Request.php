@@ -16,6 +16,22 @@ final class Request
         return is_string($value) ? trim($value) : $default;
     }
 
+    public function boolean(string $key, bool $default = false): bool
+    {
+        $payload = $this->json();
+        $value = $_POST[$key] ?? $_GET[$key] ?? $payload[$key] ?? null;
+
+        if ($value === null) {
+            return $default;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return in_array((string) $value, ['1', 'true', 'yes', 'on'], true);
+    }
+
     public function array(string $key): array
     {
         $payload = $this->json();

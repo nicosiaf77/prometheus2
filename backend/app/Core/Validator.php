@@ -43,8 +43,8 @@ final class Validator
             return "Il campo {$field} deve essere un intero.";
         }
 
-        if ($rule === 'boolean' && !in_array((string) $value, ['0', '1'], true)) {
-            return "Il campo {$field} deve essere 0 oppure 1.";
+        if ($rule === 'boolean' && !in_array($value, [0, 1, true, false, '0', '1', 'true', 'false'], true)) {
+            return "Il campo {$field} deve essere un valore booleano (0, 1, true, false).";
         }
 
         if (str_starts_with($rule, 'in:')) {

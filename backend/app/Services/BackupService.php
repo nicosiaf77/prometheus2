@@ -23,8 +23,9 @@ final class BackupService
 
         $fileName = 'prometheus2_' . date('Ymd_His') . '.sql';
         $filePath = $backupDir . '/' . $fileName;
+        $dumpBin = $this->resolveDumpBinary();
         $command = [
-            '/opt/homebrew/bin/mariadb-dump',
+            $dumpBin,
             '--host=' . $host,
             '--user=' . $username,
         ];
@@ -37,8 +38,9 @@ final class BackupService
         $shellCommand = implode(' ', array_map('escapeshellarg', $command)) . ' > ' . escapeshellarg($filePath);
         exec($shellCommand, $output, $exitCode);
 
-        if ($exitCode !== 0 || !is_file($filePath)) {
-            throw new \RuntimeException('Backup database non riuscito.');
+        if ($exitCode !== 0 || !is_file($filePath) || filesize($filePath) === 0) {
+            @unlink($filePath);
+            throw new \RuntimeException('Backup database non riuscito (exit code: ' . $exitCode . ').');
         }
 
         $hash = hash_file('sha256', $filePath);
@@ -77,5 +79,30 @@ final class BackupService
         );
 
         return $statement->fetchAll();
+    }
+
+    private function resolveDumpBinary(): string
+    {
+        $configured = trim((string) (Env::get('BACKUP_DUMP_COMMAND', '') ?? ''));
+
+        if ($configured !== '') {
+            if (!is_executable($configured)) {
+                throw new \RuntimeException('BACKUP_DUMP_COMMAND non eseguibile: ' . $configured);
+            }
+
+            return $configured;
+        }
+
+        $candidates = ['mariadb-dump', 'mysqldump'];
+
+        foreach ($candidates as $candidate) {
+            $resolved = trim((string) shell_exec('command -v ' . escapeshellarg($candidate) . ' 2>/dev/null'));
+
+            if ($resolved !== '') {
+                return $resolved;
+            }
+        }
+
+        throw new \RuntimeException('Nessun dump binary trovato. Imposta BACKUP_DUMP_COMMAND nel file .env.');
     }
 }

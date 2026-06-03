@@ -211,7 +211,7 @@ final class ControlController extends Controller
         return [
             'control_date' => $request->input('control_date', '') ?? '',
             'control_time' => $request->input('control_time', '') ?? '',
-            'has_event' => $request->input('has_event', '0') === '1' ? 1 : 0,
+            'has_event' => $request->boolean('has_event') ? 1 : 0,
             'event_name' => $request->input('event_name', '') ?? '',
             'business_name' => $request->input('business_name', '') ?? '',
             'business_location' => $request->input('business_location', '') ?? '',
@@ -229,11 +229,11 @@ final class ControlController extends Controller
             'total_sanction_amount' => $request->input('total_sanction_amount', '') ?? '',
             'alleged_crime' => $request->input('alleged_crime', '') ?? '',
             'cnr_number' => $request->input('cnr_number', '') ?? '',
-            'administrative_seizure' => $request->input('administrative_seizure', '0') === '1' ? 1 : 0,
+            'administrative_seizure' => $request->boolean('administrative_seizure') ? 1 : 0,
             'administrative_seizure_description' => $request->input('administrative_seizure_description', '') ?? '',
-            'criminal_seizure' => $request->input('criminal_seizure', '0') === '1' ? 1 : 0,
+            'criminal_seizure' => $request->boolean('criminal_seizure') ? 1 : 0,
             'criminal_seizure_description' => $request->input('criminal_seizure_description', '') ?? '',
-            'weapon_precautionary_withdrawal' => $request->input('weapon_precautionary_withdrawal', '0') === '1' ? 1 : 0,
+            'weapon_precautionary_withdrawal' => $request->boolean('weapon_precautionary_withdrawal') ? 1 : 0,
             'weapon_precautionary_withdrawal_description' => $request->input('weapon_precautionary_withdrawal_description', '') ?? '',
             'notes' => $request->input('notes', '') ?? '',
         ];
