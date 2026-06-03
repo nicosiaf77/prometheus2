@@ -18,19 +18,19 @@ Il progetto deve procedere solo con lavoro step by step. Ogni fase richiede:
 - creare connessione database;
 - implementare autenticazione;
 - implementare ruoli;
-- creare dashboard base.
+- creare endpoint dashboard base.
 
 ## Fase 2: database
 
-- applicare migrazioni;
-- creare model;
-- creare seeder categorie;
+- applicare migrazioni tramite `composer migrate`;
+- creare model reali o formalizzare service come livello dati operativo;
+- creare seeder categorie tramite `composer seed`;
 - creare agenti;
 - creare eventi semplici.
 
 ## Fase 3: controlli amministrativi
 
-- creare form nuovo controllo;
+- creare endpoint nuovo controllo e metadati per il frontend;
 - gestire controllo sfuso o evento;
 - collegare categoria principale e categorie secondarie;
 - collegare agenti multipli;
@@ -49,7 +49,7 @@ Il progetto deve procedere solo con lavoro step by step. Ogni fase richiede:
 - filtri ricerca;
 - dettaglio controllo;
 - esportazione CSV, Excel e PDF;
-- dashboard statistiche con Chart.js;
+- endpoint statistiche per dashboard frontend;
 - log esportazioni.
 
 ## Fase 6: backup e hardening

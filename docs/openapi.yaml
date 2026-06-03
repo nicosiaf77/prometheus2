@@ -1,0 +1,240 @@
+openapi: 3.0.3
+info:
+  title: Prometheus2 Backend API
+  version: 0.2.0
+  description: API backend pura JSON/CSV per Prometheus2.
+servers:
+  - url: http://localhost:8080
+paths:
+  /csrf-token:
+    get:
+      summary: Recupera token CSRF
+      responses:
+        "200":
+          description: Token generato
+  /login:
+    get:
+      summary: Informazioni diagnostiche API login
+      responses:
+        "200":
+          description: Stato API login
+    post:
+      summary: Login utente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login riuscito
+        "401":
+          description: Credenziali non valide
+        "419":
+          description: CSRF non valido
+  /me:
+    get:
+      summary: Utente autenticato corrente
+      responses:
+        "200":
+          description: Utente corrente
+        "401":
+          description: Autenticazione richiesta
+  /logout:
+    post:
+      summary: Logout utente
+      responses:
+        "200":
+          description: Logout completato
+  /dashboard:
+    get:
+      summary: Riepilogo dashboard
+      responses:
+        "200":
+          description: Riepiloghi operativi
+  /controls:
+    get:
+      summary: Lista controlli paginata
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: sort, in: query, schema: { type: string } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
+        - { name: registry_number, in: query, schema: { type: string } }
+        - { name: registry_year, in: query, schema: { type: string } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: outcome, in: query, schema: { type: string, enum: [positivo, negativo, in_accertamento] } }
+        - { name: status, in: query, schema: { type: string, enum: [bozza, validato, annullato] } }
+      responses:
+        "200":
+          description: Lista paginata controlli
+    post:
+      summary: Crea controllo in bozza
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ControlCreateRequest"
+      responses:
+        "201":
+          description: Controllo creato
+        "422":
+          description: Validazione non riuscita
+  /controls/create:
+    get:
+      summary: Metadati per creazione controllo
+      responses:
+        "200":
+          description: Categorie, agenti, eventi e default
+  /controls/{control}:
+    get:
+      summary: Dettaglio controllo
+      parameters:
+        - name: control
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Dettaglio controllo
+        "404":
+          description: Controllo non trovato
+  /controls/{control}/validate:
+    post:
+      summary: Valida controllo
+      parameters:
+        - name: control
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Controllo validato
+  /controls/{control}/annul:
+    post:
+      summary: Annulla logicamente controllo
+      parameters:
+        - name: control
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Controllo annullato
+  /events:
+    get:
+      summary: Lista eventi
+      responses:
+        "200": { description: Lista eventi }
+    post:
+      summary: Crea evento
+      responses:
+        "201": { description: Evento creato }
+  /agents:
+    get:
+      summary: Lista agenti
+      responses:
+        "200": { description: Lista agenti }
+    post:
+      summary: Crea agente
+      responses:
+        "201": { description: Agente creato }
+  /activity-categories:
+    get:
+      summary: Lista categorie attività
+      responses:
+        "200": { description: Lista categorie }
+  /statistics:
+    get:
+      summary: Statistiche operative
+      responses:
+        "200": { description: Aggregati statistiche }
+  /reports:
+    get:
+      summary: Catalogo report
+      responses:
+        "200": { description: Lista export disponibili }
+  /reports/controls.csv:
+    get:
+      summary: Export CSV controlli
+      responses:
+        "200":
+          description: CSV controlli
+          content:
+            text/csv:
+              schema: { type: string }
+  /users:
+    get:
+      summary: Lista utenti
+      responses:
+        "200": { description: Lista utenti }
+    post:
+      summary: Crea utente
+      responses:
+        "201": { description: Utente creato }
+        "422": { description: Validazione non riuscita }
+  /audit-logs:
+    get:
+      summary: Ultimi audit log
+      responses:
+        "200": { description: Lista audit log }
+  /backup:
+    get:
+      summary: Lista backup
+      responses:
+        "200": { description: Lista backup }
+    post:
+      summary: Crea backup
+      responses:
+        "201": { description: Backup creato }
+  /integrity-check:
+    get:
+      summary: Informazioni verifica integrità
+      responses:
+        "200": { description: Check disponibili }
+    post:
+      summary: Esegue verifica integrità
+      responses:
+        "200": { description: Esito verifica }
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        ok: { type: boolean, example: false }
+        error: { type: string }
+        code: { type: integer }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    LoginRequest:
+      type: object
+      required: [_csrf_token, identifier, password]
+      properties:
+        _csrf_token: { type: string }
+        identifier: { type: string }
+        password: { type: string, format: password }
+    ControlCreateRequest:
+      type: object
+      required: [_csrf_token, control_date, control_time, has_event, business_name, business_location, primary_category_id, outcome]
+      properties:
+        _csrf_token: { type: string }
+        control_date: { type: string, format: date }
+        control_time: { type: string, example: "10:30" }
+        has_event: { type: integer, enum: [0, 1] }
+        event_name: { type: string }
+        business_name: { type: string }
+        business_location: { type: string }
+        primary_category_id: { type: integer }
+        secondary_category_ids:
+          type: array
+          items: { type: integer }
+        agent_ids:
+          type: array
+          items: { type: integer }
+        outcome: { type: string, enum: [positivo, negativo, in_accertamento] }

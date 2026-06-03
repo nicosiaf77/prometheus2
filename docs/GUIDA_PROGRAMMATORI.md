@@ -35,7 +35,36 @@ cd prometheus2
 cd backend
 composer install
 cp .env.example .env
+composer migrate
+composer seed
 php -S localhost:8080 -t public public/router.php
+```
+
+Oppure, se disponibile:
+
+```bash
+composer serve
+```
+
+## Test backend
+
+```bash
+php -S localhost:8081 -t /Volumes/AIProjects/Projects/prometheus2/backend/tests
+```
+
+Aprire `http://localhost:8081`.
+
+Smoke test CLI:
+
+```bash
+PROMETHEUS_TEST_USER="nicosiaf77" PROMETHEUS_TEST_PASSWORD="password-temporanea" php tests/smoke.php
+```
+
+## Creazione amministratore locale
+
+```bash
+cd backend
+php scripts/create_admin.php --name=Nome --surname=Cognome --email=admin@example.test --username=admin --password='PasswordSicura'
 ```
 
 ## Regole di collaborazione
@@ -49,6 +78,7 @@ php -S localhost:8080 -t public public/router.php
 - Prima di analizzare o modificare codice sensibile, fare brainstorm e ottenere autorizzazione dei programmatori.
 - Ogni commit deve descrivere una modifica piccola e verificabile.
 - Non pubblicare mai file `.env`, backup database o dati personali reali.
+- Non inserire GUI o HTML operativo in `backend/app`; il backend espone API JSON/CSV. Per test HTML/PHP usare solo `backend/tests`.
 
 Le regole dettagliate sono in `docs/COLLABORAZIONE_BACKEND_FRONTEND.md`.
 

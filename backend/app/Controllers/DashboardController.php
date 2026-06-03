@@ -6,13 +6,20 @@ namespace Prometheus\Controllers;
 
 use Prometheus\Core\Controller;
 use Prometheus\Core\Response;
+use Prometheus\Services\DashboardService;
 
 final class DashboardController extends Controller
 {
     public function index(): Response
     {
-        $content = file_get_contents(dirname(__DIR__, 2) . '/resources/dashboard.html') ?: '<main>Prometheus2</main>';
+        if ($response = $this->requireAuth()) {
+            return $response;
+        }
 
-        return $this->view('Dashboard', $content);
+        return $this->json([
+            'ok' => true,
+            'user' => $this->auth()->user(),
+            'summary' => (new DashboardService())->summary(),
+        ]);
     }
 }

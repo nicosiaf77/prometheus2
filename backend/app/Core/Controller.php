@@ -4,27 +4,68 @@ declare(strict_types=1);
 
 namespace Prometheus\Core;
 
+use Prometheus\Services\AuthService;
+
 abstract class Controller
 {
-    protected function view(string $title, string $content): Response
+    protected function auth(): AuthService
     {
-        $body = <<<HTML
-        <!doctype html>
-        <html lang="it">
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>{$title} - Prometheus2</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-            <link href="/assets/css/app.css" rel="stylesheet">
-        </head>
-        <body>
-            {$content}
-            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-        </body>
-        </html>
-        HTML;
+        return new AuthService();
+    }
 
-        return new Response($body);
+    protected function redirect(string $path): Response
+    {
+        return Response::redirect($path);
+    }
+
+    protected function json(array $data, int $status = 200): Response
+    {
+        return Response::json($data, $status);
+    }
+
+    protected function error(string $message, int $status = 400, array $extra = []): Response
+    {
+        return $this->json(['ok' => false, 'error' => $message, 'code' => $status] + $extra, $status);
+    }
+
+    protected function validationError(array $errors): Response
+    {
+        return $this->error('Validazione non riuscita.', 422, ['errors' => $errors]);
+    }
+
+    protected function flash(?string $message = null): ?string
+    {
+        if ($message !== null) {
+            Session::put('flash_message', $message);
+
+            return null;
+        }
+
+        $current = Session::get('flash_message');
+        Session::forget('flash_message');
+
+        return is_string($current) ? $current : null;
+    }
+
+    protected function requireAuth(): ?Response
+    {
+        if ($this->auth()->check()) {
+            return null;
+        }
+
+        return $this->error('Autenticazione richiesta.', 401);
+    }
+
+    protected function requireRoles(array $roles): ?Response
+    {
+        if ($response = $this->requireAuth()) {
+            return $response;
+        }
+
+        if ($this->auth()->hasRole($roles)) {
+            return null;
+        }
+
+        return $this->error('Permessi insufficienti.', 403, ['required_roles' => $roles]);
     }
 }

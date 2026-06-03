@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     surname VARCHAR(100) NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE users (
     updated_at DATETIME NOT NULL
 );
 
-CREATE TABLE login_logs (
+CREATE TABLE IF NOT EXISTS login_logs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NULL,
     username_attempted VARCHAR(190) NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE login_logs (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NULL,
     action VARCHAR(80) NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE audit_logs (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(190) NOT NULL UNIQUE,
     created_by BIGINT UNSIGNED NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE events (
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
-CREATE TABLE agents (
+CREATE TABLE IF NOT EXISTS agents (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     surname VARCHAR(100) NOT NULL,
@@ -58,7 +58,7 @@ CREATE TABLE agents (
     updated_at DATETIME NOT NULL
 );
 
-CREATE TABLE activity_categories (
+CREATE TABLE IF NOT EXISTS activity_categories (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(190) NOT NULL UNIQUE,
     description TEXT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE activity_categories (
     updated_at DATETIME NOT NULL
 );
 
-CREATE TABLE controls (
+CREATE TABLE IF NOT EXISTS controls (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     registry_number INT UNSIGNED NOT NULL,
     registry_year SMALLINT UNSIGNED NOT NULL,
@@ -115,7 +115,7 @@ CREATE TABLE controls (
     FOREIGN KEY (annulled_by) REFERENCES users(id)
 );
 
-CREATE TABLE control_activity_category (
+CREATE TABLE IF NOT EXISTS control_activity_category (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     control_id BIGINT UNSIGNED NOT NULL,
     activity_category_id BIGINT UNSIGNED NOT NULL,
@@ -126,7 +126,7 @@ CREATE TABLE control_activity_category (
     FOREIGN KEY (activity_category_id) REFERENCES activity_categories(id)
 );
 
-CREATE TABLE agent_control (
+CREATE TABLE IF NOT EXISTS agent_control (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     control_id BIGINT UNSIGNED NOT NULL,
     agent_id BIGINT UNSIGNED NOT NULL,
@@ -137,7 +137,7 @@ CREATE TABLE agent_control (
     FOREIGN KEY (agent_id) REFERENCES agents(id)
 );
 
-CREATE TABLE control_versions (
+CREATE TABLE IF NOT EXISTS control_versions (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     control_id BIGINT UNSIGNED NOT NULL,
     version_number INT UNSIGNED NOT NULL,
@@ -152,7 +152,7 @@ CREATE TABLE control_versions (
     FOREIGN KEY (changed_by) REFERENCES users(id)
 );
 
-CREATE TABLE exports (
+CREATE TABLE IF NOT EXISTS exports (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
     export_type VARCHAR(80) NOT NULL,
@@ -162,7 +162,7 @@ CREATE TABLE exports (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TABLE backups (
+CREATE TABLE IF NOT EXISTS backups (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
     file_name VARCHAR(255) NOT NULL,

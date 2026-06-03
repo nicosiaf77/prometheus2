@@ -12,7 +12,7 @@ final class EncryptionService
     {
         $iv = random_bytes(12);
         $tag = '';
-        $cipherText = openssl_encrypt($plainText, self::CIPHER, $key, OPENSSL_RAW_DATA, $iv, $tag);
+        $cipherText = openssl_encrypt($plainText, self::CIPHER, $this->normalizeKey($key), OPENSSL_RAW_DATA, $iv, $tag);
 
         if ($cipherText === false) {
             throw new \RuntimeException('Cifratura non riuscita.');
@@ -32,12 +32,17 @@ final class EncryptionService
         $iv = substr($payload, 0, 12);
         $tag = substr($payload, 12, 16);
         $cipherText = substr($payload, 28);
-        $plainText = openssl_decrypt($cipherText, self::CIPHER, $key, OPENSSL_RAW_DATA, $iv, $tag);
+        $plainText = openssl_decrypt($cipherText, self::CIPHER, $this->normalizeKey($key), OPENSSL_RAW_DATA, $iv, $tag);
 
         if ($plainText === false) {
             throw new \RuntimeException('Decifratura non riuscita.');
         }
 
         return $plainText;
+    }
+
+    private function normalizeKey(string $key): string
+    {
+        return hash('sha256', $key, true);
     }
 }

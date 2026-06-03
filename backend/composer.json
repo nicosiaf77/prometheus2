@@ -11,6 +11,9 @@
     }
   },
   "scripts": {
-    "serve": "php -S localhost:8080 -t public public/router.php"
+    "serve": "php -S localhost:8080 -t public public/router.php",
+    "migrate": "php scripts/migrate.php",
+    "seed": "php scripts/seed.php",
+    "create-admin": "php scripts/create_admin.php"
   }
 }

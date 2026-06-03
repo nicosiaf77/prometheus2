@@ -33,6 +33,7 @@ Percorsi principali:
 - `backend/config`;
 - `backend/storage`;
 - `backend/composer.json`.
+- `backend/tests`, solo per harness e smoke test backend.
 
 Il frontend non deve modificare questi file senza accordo preventivo.
 
@@ -127,6 +128,8 @@ Per ogni funzione nuova definire prima:
 
 Il contratto API deve stare in `docs/API_CONTRACT.md`.
 
+La readiness delle API per il frontend deve stare in `docs/FRONTEND_BACKEND_READINESS.md`.
+
 Esempio:
 
 ```text
@@ -146,6 +149,7 @@ Risposta: lista paginata controlli
 - Non usare `git push --force` su branch condivisi.
 - Non usare `git reset --hard` su lavoro non proprio.
 - Non copiare dati reali nel repository.
+- Non inserire HTML operativo in `backend/app`: il backend deve restare API pura. HTML/PHP di test ammessi solo in `backend/tests`.
 
 ## Pull request
 
