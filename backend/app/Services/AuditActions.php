@@ -16,4 +16,6 @@ final class AuditActions
     public const CONTROL_ANNULLED = 'CONTROL_ANNULLED';
     public const CONTROL_VIEWED = 'CONTROL_VIEWED';
     public const REPORT_EXPORTED = 'REPORT_EXPORTED';
+    public const BACKUP_CREATED = 'BACKUP_CREATED';
+    public const INTEGRITY_CHECK = 'INTEGRITY_CHECK';
 }

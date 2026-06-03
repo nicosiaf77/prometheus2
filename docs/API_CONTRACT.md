@@ -84,6 +84,10 @@ GET /integrity-check
 POST /integrity-check
 ```
 
+`POST /backup` crea dump SQL locale in `backend/storage/backups`, registra SHA-256 in tabella `backups` e audit log. Permessi: amministratore.
+
+`POST /integrity-check` verifica catena versioni/hash dei controlli e registra audit log. Permessi: amministratore, responsabile ufficio.
+
 ## Regola di modifica
 
 Ogni variazione a questo file deve essere approvata da entrambi i programmatori, perche impatta sia backend sia frontend.
