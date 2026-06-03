@@ -139,6 +139,58 @@ final class ControlController extends Controller
         ], 201);
     }
 
+    public function pdf(string $control): Response
+    {
+        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+            return $response;
+        }
+
+        if (!ctype_digit($control)) {
+            return $this->error('Controllo non trovato.', 404);
+        }
+
+        $controlData = (new ControlService())->find((int) $control);
+
+        if ($controlData === null) {
+            return $this->error('Controllo non trovato.', 404);
+        }
+
+        $user = $this->auth()->user();
+
+        try {
+            $export = (new \Prometheus\Services\ReportService())->controlDetailPdf($controlData, (int) $user['id']);
+        } catch (\Throwable $exception) {
+            return $this->error('Generazione PDF non riuscita: ' . $exception->getMessage(), 500);
+        }
+
+        return new \Prometheus\Core\Response($export['content'], 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $export['file_name'] . '"',
+        ]);
+    }
+
+    public function versions(string $control): Response
+    {
+        if ($response = $this->requireAuth()) {
+            return $response;
+        }
+
+        if (!ctype_digit($control)) {
+            return $this->error('Controllo non trovato.', 404);
+        }
+
+        $versions = (new ControlService())->versionsList((int) $control);
+
+        if ($versions === null) {
+            return $this->error('Controllo non trovato.', 404);
+        }
+
+        return $this->json([
+            'ok'       => true,
+            'versions' => $versions,
+        ]);
+    }
+
     public function update(string $control): Response
     {
         if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio', 'operatore'])) {

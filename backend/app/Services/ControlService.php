@@ -203,11 +203,37 @@ final class ControlService
         $control['offender'] = $this->decryptNullable($control['offender_encrypted']);
         $control['cnr_number'] = $this->decryptNullable($control['cnr_number_encrypted']);
         $control['notes'] = $this->decryptNullable($control['notes_encrypted']);
-        $control['categories'] = $this->categories($id);
+
+        $allCategories = $this->categories($id);
+        $control['primary_category'] = null;
+        $control['secondary_categories'] = [];
+
+        foreach ($allCategories as $cat) {
+            if ((bool) $cat['is_primary']) {
+                $control['primary_category'] = $cat;
+            } else {
+                $control['secondary_categories'][] = $cat;
+            }
+        }
+
         $control['agents'] = $this->agents($id);
         $control['versions'] = $this->versions($id);
 
         return $control;
+    }
+
+    public function versionsList(int $controlId): ?array
+    {
+        $statement = Database::connection()->prepare(
+            'SELECT id FROM controls WHERE id = :id LIMIT 1'
+        );
+        $statement->execute(['id' => $controlId]);
+
+        if ($statement->fetchColumn() === false) {
+            return null;
+        }
+
+        return $this->versions($controlId);
     }
 
     public function create(array $data, int $userId): int
