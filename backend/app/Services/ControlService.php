@@ -18,11 +18,23 @@ final class ControlService
                     controls.registry_number,
                     controls.registry_year,
                     controls.control_date,
+                    controls.control_time,
+                    controls.has_event,
                     COALESCE(events.name, 'Nessuno') AS event_name,
                     controls.business_name,
                     controls.business_location,
                     controls.outcome,
-                    controls.status
+                    controls.status,
+                    controls.total_sanction_amount,
+                    (
+                        SELECT activity_categories.name
+                        FROM control_activity_category
+                        INNER JOIN activity_categories
+                            ON activity_categories.id = control_activity_category.activity_category_id
+                        WHERE control_activity_category.control_id = controls.id
+                          AND control_activity_category.is_primary = 1
+                        LIMIT 1
+                    ) AS primary_category_name
              FROM controls
              LEFT JOIN events ON events.id = controls.event_id
              ORDER BY controls.created_at DESC
@@ -143,12 +155,23 @@ final class ControlService
                     controls.registry_number,
                     controls.registry_year,
                     controls.control_date,
+                    controls.control_time,
+                    controls.has_event,
                     COALESCE(events.name, 'Nessuno') AS event_name,
                     controls.business_name,
                     controls.business_location,
                     controls.outcome,
                     controls.status,
-                    controls.total_sanction_amount
+                    controls.total_sanction_amount,
+                    (
+                        SELECT activity_categories.name
+                        FROM control_activity_category
+                        INNER JOIN activity_categories
+                            ON activity_categories.id = control_activity_category.activity_category_id
+                        WHERE control_activity_category.control_id = controls.id
+                          AND control_activity_category.is_primary = 1
+                        LIMIT 1
+                    ) AS primary_category_name
              {$fromSql}
              {$whereSql}
              ORDER BY {$sortColumn} {$sortDirection}, controls.registry_number {$sortDirection}

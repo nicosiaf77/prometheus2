@@ -26,6 +26,64 @@ final class EventController extends Controller
         ]);
     }
 
+    public function show(string $event): Response
+    {
+        if ($response = $this->requireAuth()) {
+            return $response;
+        }
+
+        if (!ctype_digit($event)) {
+            return $this->error('Evento non trovato.', 404);
+        }
+
+        $eventData = (new EventService())->find((int) $event);
+
+        if ($eventData === null) {
+            return $this->error('Evento non trovato.', 404);
+        }
+
+        return $this->json(['ok' => true, 'event' => $eventData]);
+    }
+
+    public function update(string $event): Response
+    {
+        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+            return $response;
+        }
+
+        $request = new Request();
+
+        if (!Session::validateCsrf($request->input('_csrf_token'))) {
+            return $this->error('Sessione non valida.', 419);
+        }
+
+        if (!ctype_digit($event)) {
+            return $this->error('Evento non trovato.', 404);
+        }
+
+        $eventId = (int) $event;
+        $service = new EventService();
+
+        if ($service->find($eventId) === null) {
+            return $this->error('Evento non trovato.', 404);
+        }
+
+        $name = trim($request->input('name', '') ?? '');
+
+        if ($name === '') {
+            return $this->validationError(['name' => ['Il nome evento è obbligatorio.']]);
+        }
+
+        if ($service->isNameTaken($name, $eventId)) {
+            return $this->validationError(['name' => ['Nome evento già in uso.']]);
+        }
+
+        $service->update($eventId, $name);
+        (new AuditService())->record(AuditActions::EVENT_CREATED, 'events', $eventId, 'Evento rinominato: ' . mb_strtoupper(trim($name), 'UTF-8'));
+
+        return $this->json(['ok' => true, 'message' => 'Evento aggiornato correttamente.']);
+    }
+
     public function store(): Response
     {
         if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio', 'operatore'])) {

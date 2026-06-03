@@ -259,6 +259,94 @@ final class ReportService
         return ['file_name' => $fileName, 'content' => $content];
     }
 
+    // ── PDF statistiche ───────────────────────────────────────────────
+
+    public function statisticsPdf(array $filters, int $userId): array
+    {
+        $stats    = (new StatisticsService())->dashboard($filters);
+        $fileName = 'statistiche_' . date('Ymd_His') . '.pdf';
+        $pdf      = new PdfWriter();
+
+        $pdf->title('Statistiche controlli amministrativi');
+        $pdf->subtitle('Questura di Catania — Squadra Amministrativa');
+        $pdf->paragraph('Generato il', date('d/m/Y H:i'));
+
+        $yearLabel = ($filters['year'] ?? '') !== '' ? $filters['year'] : date('Y');
+        $pdf->paragraph('Anno di riferimento', (string) $yearLabel);
+        $pdf->spacer(10);
+
+        // Riepilogo generale
+        $pdf->subtitle('Riepilogo generale');
+        $s = $stats['summary'];
+        $pdf->paragraph('Totale controlli', (string) ($s['total_controls'] ?? 0));
+        $pdf->paragraph('Positivi', (string) ($s['positive_controls'] ?? 0));
+        $pdf->paragraph('Negativi', (string) ($s['negative_controls'] ?? 0));
+        $pdf->paragraph('In accertamento', (string) ($s['investigation_controls'] ?? 0));
+        $pdf->paragraph('Controlli sfusi', (string) ($s['loose_controls'] ?? 0));
+        $pdf->paragraph('Collegati a evento', (string) ($s['event_controls'] ?? 0));
+        $pdf->paragraph('Totale sanzioni', '€ ' . number_format((float) ($s['total_sanctions'] ?? 0), 2, ',', '.'));
+        $pdf->paragraph('Reati contestati', (string) ($s['alleged_crimes'] ?? 0));
+        $pdf->paragraph('Comunicazioni CNR', (string) ($s['cnr_numbers'] ?? 0));
+        $pdf->paragraph('Sequestri amministrativi', (string) ($s['administrative_seizures'] ?? 0));
+        $pdf->paragraph('Sequestri penali', (string) ($s['criminal_seizures'] ?? 0));
+        $pdf->paragraph('Ritiri armi art. 39 TULPS', (string) ($s['weapon_withdrawals'] ?? 0));
+        $pdf->spacer(10);
+
+        // Per categoria
+        if (!empty($stats['by_category'])) {
+            $pdf->subtitle('Controlli per categoria');
+            $pdf->table(
+                ['Categoria', 'Totale', 'Positivi', 'Negativi', 'Accertamento', 'Sanzioni (€)'],
+                array_map(static fn (array $r): array => [
+                    $r['name'],
+                    $r['total'],
+                    $r['positive'],
+                    $r['negative'],
+                    $r['investigation'],
+                    number_format((float) $r['sanctions'], 2, ',', '.'),
+                ], $stats['by_category']),
+                [170, 45, 50, 50, 65, 65]
+            );
+            $pdf->spacer(10);
+        }
+
+        // Per agente
+        if (!empty($stats['by_agent'])) {
+            $pdf->subtitle('Controlli per agente');
+            $pdf->table(
+                ['Agente', 'Qualifica', 'Totale controlli'],
+                array_map(static fn (array $r): array => [
+                    $r['name'],
+                    $r['rank'] ?? '',
+                    $r['total'],
+                ], $stats['by_agent']),
+                [230, 170, 85]
+            );
+            $pdf->spacer(10);
+        }
+
+        // Per evento
+        if (!empty($stats['by_event'])) {
+            $pdf->subtitle('Controlli per evento / servizio speciale');
+            $pdf->table(
+                ['Evento', 'Totale', 'Sanzioni (€)'],
+                array_map(static fn (array $r): array => [
+                    $r['name'],
+                    $r['total'],
+                    number_format((float) $r['sanctions'], 2, ',', '.'),
+                ], $stats['by_event']),
+                [280, 80, 125]
+            );
+        }
+
+        $content = $pdf->render();
+
+        $this->recordExport($userId, 'statistics_pdf', $filters, $fileName);
+        (new AuditService())->record(AuditActions::REPORT_EXPORTED, 'exports', null, 'Export PDF statistiche: ' . $fileName);
+
+        return ['file_name' => $fileName, 'content' => $content];
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────
 
     private function recordExport(int $userId, string $type, array $filters, string $fileName): void
