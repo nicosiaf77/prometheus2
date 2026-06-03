@@ -11,6 +11,10 @@ final class EventController extends Controller
 {
     public function index(): Response
     {
+        if ($response = $this->requireAuth()) {
+            return $response;
+        }
+
         return $this->view('Eventi', '<main class="container py-4"><h1>Eventi</h1><p>Gestione semplice eventi e servizi speciali.</p></main>');
     }
 }

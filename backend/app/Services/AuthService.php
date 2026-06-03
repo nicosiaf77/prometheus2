@@ -13,7 +13,7 @@ final class AuthService
 {
     public function check(): bool
     {
-        return is_int(Session::get('user_id')) || ctype_digit((string) Session::get('user_id', ''));
+        return $this->user() !== null;
     }
 
     public function user(): ?array

@@ -27,6 +27,22 @@ abstract class Controller
         return Response::redirect('/login');
     }
 
+    protected function requireRoles(array $roles): ?Response
+    {
+        if ($response = $this->requireAuth()) {
+            return $response;
+        }
+
+        if ($this->auth()->hasRole($roles)) {
+            return null;
+        }
+
+        return new Response(
+            '<main class="container py-4"><h1>Accesso negato</h1><p>Non disponi dei permessi necessari per questa funzione.</p></main>',
+            403
+        );
+    }
+
     protected function view(string $title, string $content): Response
     {
         $body = <<<HTML

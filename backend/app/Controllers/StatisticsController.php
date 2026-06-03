@@ -11,6 +11,10 @@ final class StatisticsController extends Controller
 {
     public function index(): Response
     {
+        if ($response = $this->requireAuth()) {
+            return $response;
+        }
+
         return $this->view('Statistiche', '<main class="container py-4"><h1>Statistiche</h1><p>Dashboard statistica prevista nella fase 5.</p></main>');
     }
 }
