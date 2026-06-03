@@ -152,7 +152,7 @@ Funzioni minime:
 
 1. Gestione modifica controllo esistente: manca endpoint `PUT/PATCH /controls/{control}`.
 2. Eliminazione o disattivazione agenti/eventi/categorie: non ancora prevista.
-3. Paginazione avanzata tabelle: manca metadata backend.
+3. Paginazione avanzata tabelle: metadata base presente; resta da validare con esigenze reali del frontend.
 4. Export Excel/PDF: disponibile solo CSV.
 5. Reset password/autogestione profilo: non ancora sviluppato.
 

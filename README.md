@@ -76,3 +76,4 @@ La guida di installazione e collaborazione e' in `docs/GUIDA_PROGRAMMATORI.md`.
 - Il contratto tra backend e frontend e' in `docs/API_CONTRACT.md`.
 - Lo stato delle API pronte per il frontend e' in `docs/FRONTEND_BACKEND_READINESS.md`.
 - La specifica OpenAPI iniziale e' in `docs/openapi.yaml`.
+- Le urgenze backend sono in `docs/BACKEND_URGENZE.md`.

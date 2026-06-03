@@ -22,9 +22,9 @@ Il progetto deve procedere solo con lavoro step by step. Ogni fase richiede:
 
 ## Fase 2: database
 
-- applicare migrazioni;
-- creare model;
-- creare seeder categorie;
+- applicare migrazioni tramite `composer migrate`;
+- creare model reali o formalizzare service come livello dati operativo;
+- creare seeder categorie tramite `composer seed`;
 - creare agenti;
 - creare eventi semplici.
 
