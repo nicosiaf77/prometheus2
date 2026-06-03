@@ -39,6 +39,8 @@ POST /controls/{control}/validate
 POST /controls/{control}/annul
 ```
 
+`POST /controls` crea un controllo in stato `bozza`, assegna numero registro progressivo per anno, collega evento/categorie/agenti e genera hash/versione iniziale. Permessi: amministratore, responsabile ufficio, operatore.
+
 ### Tabelle di supporto
 
 ```text

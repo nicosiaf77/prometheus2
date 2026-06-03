@@ -13,6 +13,17 @@ final class Request
         return is_string($value) ? trim($value) : $default;
     }
 
+    public function array(string $key): array
+    {
+        $value = $_POST[$key] ?? $_GET[$key] ?? [];
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter($value, static fn (mixed $item): bool => is_scalar($item) && trim((string) $item) !== ''));
+    }
+
     public function ip(): ?string
     {
         return $_SERVER['REMOTE_ADDR'] ?? null;

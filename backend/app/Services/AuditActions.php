@@ -11,4 +11,5 @@ final class AuditActions
     public const LOGOUT = 'LOGOUT';
     public const EVENT_CREATED = 'EVENT_CREATED';
     public const AGENT_CREATED = 'AGENT_CREATED';
+    public const CONTROL_CREATED = 'CONTROL_CREATED';
 }
