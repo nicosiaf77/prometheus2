@@ -6,6 +6,7 @@ namespace Prometheus\Services;
 
 use Prometheus\Core\Database;
 use Prometheus\Core\Env;
+use PDO;
 use Throwable;
 
 final class ControlService
@@ -31,6 +32,40 @@ final class ControlService
         $statement->execute();
 
         return $statement->fetchAll();
+    }
+
+    public function find(int $id): ?array
+    {
+        $statement = Database::connection()->prepare(
+            "SELECT controls.*,
+                    COALESCE(events.name, 'Nessuno') AS event_name,
+                    creator.username AS created_by_username,
+                    validator.username AS validated_by_username,
+                    annuller.username AS annulled_by_username
+             FROM controls
+             LEFT JOIN events ON events.id = controls.event_id
+             LEFT JOIN users creator ON creator.id = controls.created_by
+             LEFT JOIN users validator ON validator.id = controls.validated_by
+             LEFT JOIN users annuller ON annuller.id = controls.annulled_by
+             WHERE controls.id = :id
+             LIMIT 1"
+        );
+        $statement->execute(['id' => $id]);
+        $control = $statement->fetch(PDO::FETCH_ASSOC);
+
+        if (!is_array($control)) {
+            return null;
+        }
+
+        $control['business_owner'] = $this->decryptNullable($control['business_owner_encrypted']);
+        $control['offender'] = $this->decryptNullable($control['offender_encrypted']);
+        $control['cnr_number'] = $this->decryptNullable($control['cnr_number_encrypted']);
+        $control['notes'] = $this->decryptNullable($control['notes_encrypted']);
+        $control['categories'] = $this->categories($id);
+        $control['agents'] = $this->agents($id);
+        $control['versions'] = $this->versions($id);
+
+        return $control;
     }
 
     public function create(array $data, int $userId): int
@@ -123,6 +158,125 @@ final class ControlService
         }
     }
 
+    public function validate(int $controlId, int $userId): void
+    {
+        $pdo = Database::connection();
+        $pdo->beginTransaction();
+
+        try {
+            $control = $this->lockControl($controlId);
+
+            if ($control === null) {
+                throw new \RuntimeException('Controllo non trovato.');
+            }
+
+            if ($control['status'] === 'annullato') {
+                throw new \RuntimeException('Un controllo annullato non puo essere validato.');
+            }
+
+            if ($control['status'] === 'validato') {
+                throw new \RuntimeException('Il controllo risulta gia validato.');
+            }
+
+            $previousHash = (string) $control['hash_record'];
+            $snapshot = array_merge($control, [
+                'status' => 'validato',
+                'validated_by' => $userId,
+                'validated_at' => date('Y-m-d H:i:s'),
+            ]);
+            $newHash = (new HashChainService())->calculate($snapshot, $previousHash);
+
+            $pdo->prepare(
+                'UPDATE controls
+                 SET status = :status,
+                     validated_by = :validated_by,
+                     validated_at = NOW(),
+                     updated_by = :updated_by,
+                     hash_record = :hash_record,
+                     previous_hash = :previous_hash,
+                     updated_at = NOW()
+                 WHERE id = :id'
+            )->execute([
+                'status' => 'validato',
+                'validated_by' => $userId,
+                'updated_by' => $userId,
+                'hash_record' => $newHash,
+                'previous_hash' => $previousHash,
+                'id' => $controlId,
+            ]);
+
+            $this->createVersionFromSnapshot($controlId, $snapshot, $newHash, $previousHash, $userId, 'Validazione controllo');
+            (new AuditService())->record(AuditActions::CONTROL_VALIDATED, 'controls', $controlId, 'Controllo validato');
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            $pdo->rollBack();
+
+            throw $exception;
+        }
+    }
+
+    public function annul(int $controlId, int $userId, string $reason): void
+    {
+        $reason = trim($reason);
+
+        if ($reason === '') {
+            throw new \InvalidArgumentException('Il motivo dell annullamento e obbligatorio.');
+        }
+
+        $pdo = Database::connection();
+        $pdo->beginTransaction();
+
+        try {
+            $control = $this->lockControl($controlId);
+
+            if ($control === null) {
+                throw new \RuntimeException('Controllo non trovato.');
+            }
+
+            if ($control['status'] === 'annullato') {
+                throw new \RuntimeException('Il controllo risulta gia annullato.');
+            }
+
+            $previousHash = (string) $control['hash_record'];
+            $snapshot = array_merge($control, [
+                'status' => 'annullato',
+                'annulled_by' => $userId,
+                'annulled_at' => date('Y-m-d H:i:s'),
+                'annulment_reason' => $reason,
+            ]);
+            $newHash = (new HashChainService())->calculate($snapshot, $previousHash);
+
+            $pdo->prepare(
+                'UPDATE controls
+                 SET status = :status,
+                     annulled_by = :annulled_by,
+                     annulled_at = NOW(),
+                     annulment_reason = :annulment_reason,
+                     updated_by = :updated_by,
+                     hash_record = :hash_record,
+                     previous_hash = :previous_hash,
+                     updated_at = NOW()
+                 WHERE id = :id'
+            )->execute([
+                'status' => 'annullato',
+                'annulled_by' => $userId,
+                'annulment_reason' => $reason,
+                'updated_by' => $userId,
+                'hash_record' => $newHash,
+                'previous_hash' => $previousHash,
+                'id' => $controlId,
+            ]);
+
+            $this->createVersionFromSnapshot($controlId, $snapshot, $newHash, $previousHash, $userId, 'Annullamento controllo: ' . $reason);
+            (new AuditService())->record(AuditActions::CONTROL_ANNULLED, 'controls', $controlId, 'Controllo annullato: ' . $reason);
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            $pdo->rollBack();
+
+            throw $exception;
+        }
+    }
+
     private function nextRegistryNumber(int $year): int
     {
         $statement = Database::connection()->prepare(
@@ -164,6 +318,19 @@ final class ControlService
         $value = trim($value);
 
         return $value !== '' ? $service->encrypt($value, $key) : null;
+    }
+
+    private function decryptNullable(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return (new EncryptionService())->decrypt($value, Env::get('APP_KEY', 'change-me') ?? 'change-me');
+        } catch (Throwable) {
+            return '[dato non decifrabile]';
+        }
     }
 
     private function decimalOrNull(string $value): ?string
@@ -230,6 +397,91 @@ final class ControlService
             'hash_version' => $hash,
             'changed_by' => $userId,
             'change_reason' => 'Creazione controllo',
+        ]);
+    }
+
+    private function lockControl(int $controlId): ?array
+    {
+        $statement = Database::connection()->prepare('SELECT * FROM controls WHERE id = :id LIMIT 1 FOR UPDATE');
+        $statement->execute(['id' => $controlId]);
+        $control = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($control) ? $control : null;
+    }
+
+    private function categories(int $controlId): array
+    {
+        $statement = Database::connection()->prepare(
+            'SELECT activity_categories.name, control_activity_category.is_primary
+             FROM control_activity_category
+             INNER JOIN activity_categories ON activity_categories.id = control_activity_category.activity_category_id
+             WHERE control_activity_category.control_id = :control_id
+             ORDER BY control_activity_category.is_primary DESC, activity_categories.name'
+        );
+        $statement->execute(['control_id' => $controlId]);
+
+        return $statement->fetchAll();
+    }
+
+    private function agents(int $controlId): array
+    {
+        $statement = Database::connection()->prepare(
+            'SELECT agents.name, agents.surname, agents.rank, agents.office
+             FROM agent_control
+             INNER JOIN agents ON agents.id = agent_control.agent_id
+             WHERE agent_control.control_id = :control_id
+             ORDER BY agents.surname, agents.name'
+        );
+        $statement->execute(['control_id' => $controlId]);
+
+        return $statement->fetchAll();
+    }
+
+    private function versions(int $controlId): array
+    {
+        $statement = Database::connection()->prepare(
+            'SELECT control_versions.version_number,
+                    control_versions.hash_version,
+                    control_versions.previous_hash,
+                    control_versions.change_reason,
+                    control_versions.created_at,
+                    users.username AS changed_by_username
+             FROM control_versions
+             LEFT JOIN users ON users.id = control_versions.changed_by
+             WHERE control_versions.control_id = :control_id
+             ORDER BY control_versions.version_number DESC'
+        );
+        $statement->execute(['control_id' => $controlId]);
+
+        return $statement->fetchAll();
+    }
+
+    private function createVersionFromSnapshot(
+        int $controlId,
+        array $snapshot,
+        string $hash,
+        string $previousHash,
+        int $userId,
+        string $reason
+    ): void {
+        $versionStatement = Database::connection()->prepare(
+            'SELECT COALESCE(MAX(version_number), 0) + 1 FROM control_versions WHERE control_id = :control_id FOR UPDATE'
+        );
+        $versionStatement->execute(['control_id' => $controlId]);
+        $versionNumber = (int) $versionStatement->fetchColumn();
+
+        $insertStatement = Database::connection()->prepare(
+            'INSERT INTO control_versions (control_id, version_number, data_json, hash_version, previous_hash, changed_by, change_reason, created_at)
+             VALUES (:control_id, :version_number, :data_json, :hash_version, :previous_hash, :changed_by, :change_reason, NOW())'
+        );
+        $insertStatement->execute([
+            'control_id' => $controlId,
+            'version_number' => $versionNumber,
+            'data_json' => json_encode($snapshot, JSON_THROW_ON_ERROR),
+            'hash_version' => $hash,
+            'previous_hash' => $previousHash,
+            'changed_by' => $userId,
+            'change_reason' => $reason,
         ]);
     }
 }

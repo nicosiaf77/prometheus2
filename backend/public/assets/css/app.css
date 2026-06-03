@@ -224,12 +224,56 @@ body {
   margin-top: 12px;
 }
 
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.detail-list {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.detail-list dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.detail-list dd {
+  margin: 0;
+}
+
+.badge-list,
+.action-row,
+.inline-annul-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.inline-annul-form {
+  flex: 1;
+}
+
+.inline-annul-form input {
+  max-width: 320px;
+}
+
 @media (max-width: 900px) {
   .compact-form {
     grid-template-columns: 1fr;
   }
 
-  .form-grid {
+  .form-grid,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-list {
     grid-template-columns: 1fr;
   }
 }

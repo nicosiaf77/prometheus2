@@ -33,13 +33,17 @@ GET /controls
 GET /controls/create
 POST /controls
 GET /controls/{control}
-GET /controls/{control}/edit
-PUT /controls/{control}
 POST /controls/{control}/validate
 POST /controls/{control}/annul
 ```
 
 `POST /controls` crea un controllo in stato `bozza`, assegna numero registro progressivo per anno, collega evento/categorie/agenti e genera hash/versione iniziale. Permessi: amministratore, responsabile ufficio, operatore.
+
+`GET /controls/{control}` mostra dettaglio controllo, dati cifrati decifrati, categorie, agenti, hash e versioni. Permessi: utenti autenticati.
+
+`POST /controls/{control}/validate` valida un controllo in bozza e genera nuova versione hash-chain. Permessi: amministratore, responsabile ufficio.
+
+`POST /controls/{control}/annul` annulla logicamente un controllo con motivo obbligatorio e genera nuova versione hash-chain. Permessi: amministratore, responsabile ufficio.
 
 ### Tabelle di supporto
 

@@ -23,6 +23,23 @@ final class Router
         $method = $method === 'HEAD' ? 'GET' : $method;
         $path = parse_url($uri, PHP_URL_PATH) ?: '/';
         $handler = $this->routes[$method][$path] ?? null;
+        $params = [];
+
+        if ($handler === null) {
+            foreach ($this->routes[$method] ?? [] as $routePath => $routeHandler) {
+                $pattern = preg_replace('#\{[^/]+\}#', '([^/]+)', $routePath);
+
+                if (!is_string($pattern)) {
+                    continue;
+                }
+
+                if (preg_match('#^' . $pattern . '$#', $path, $matches) === 1) {
+                    $handler = $routeHandler;
+                    $params = array_slice($matches, 1);
+                    break;
+                }
+            }
+        }
 
         if ($handler === null) {
             return new Response('<h1>404</h1><p>Pagina non trovata.</p>', 404);
@@ -31,6 +48,6 @@ final class Router
         [$controllerClass, $action] = $handler;
         $controller = new $controllerClass();
 
-        return $controller->{$action}();
+        return $controller->{$action}(...$params);
     }
 }

@@ -10,6 +10,8 @@ use Prometheus\Core\Response;
 use Prometheus\Core\Session;
 use Prometheus\Services\ActivityCategoryService;
 use Prometheus\Services\AgentService;
+use Prometheus\Services\AuditActions;
+use Prometheus\Services\AuditService;
 use Prometheus\Services\ControlService;
 use Prometheus\Services\EventService;
 use Throwable;
@@ -37,11 +39,12 @@ final class ControlController extends Controller
                 . '<td>' . $this->e($control['business_location']) . '</td>'
                 . '<td>' . $this->e($control['outcome']) . '</td>'
                 . '<td>' . $this->e($control['status']) . '</td>'
+                . '<td><a class="btn btn-sm btn-outline-secondary" href="/controls/' . $this->e($control['id']) . '">Apri</a></td>'
                 . '</tr>';
         }
 
         if ($rows === '') {
-            $rows = '<tr><td colspan="7" class="text-muted">Nessun controllo inserito.</td></tr>';
+            $rows = '<tr><td colspan="8" class="text-muted">Nessun controllo inserito.</td></tr>';
         }
 
         $content = <<<HTML
@@ -56,7 +59,7 @@ final class ControlController extends Controller
             {$flashHtml}
             <div class="panel">
                 <table class="table table-sm align-middle">
-                    <thead><tr><th>Registro</th><th>Data</th><th>Evento</th><th>Attivita</th><th>Luogo</th><th>Esito</th><th>Stato</th></tr></thead>
+                    <thead><tr><th>Registro</th><th>Data</th><th>Evento</th><th>Attivita</th><th>Luogo</th><th>Esito</th><th>Stato</th><th>Azioni</th></tr></thead>
                     <tbody>{$rows}</tbody>
                 </table>
             </div>
@@ -201,6 +204,97 @@ final class ControlController extends Controller
         return $this->view('Nuovo controllo', $content);
     }
 
+    public function show(string $control): Response
+    {
+        if ($response = $this->requireAuth()) {
+            return $response;
+        }
+
+        if (!ctype_digit($control)) {
+            return new Response('<main class="container py-4"><h1>Controllo non trovato</h1></main>', 404);
+        }
+
+        $controlData = (new ControlService())->find((int) $control);
+
+        if ($controlData === null) {
+            return new Response('<main class="container py-4"><h1>Controllo non trovato</h1></main>', 404);
+        }
+
+        (new AuditService())->record(AuditActions::CONTROL_VIEWED, 'controls', (int) $control, 'Accesso dettaglio controllo');
+
+        $flash = $this->flash();
+        $flashHtml = $flash !== null ? '<div class="alert alert-success py-2">' . $this->e($flash) . '</div>' : '';
+        $registry = $this->e($controlData['registry_number'] . '/' . $controlData['registry_year']);
+        $categories = $this->categoryBadges($controlData['categories']);
+        $agents = $this->agentBadges($controlData['agents']);
+        $versions = $this->versionRows($controlData['versions']);
+        $actions = $this->detailActions($controlData);
+        $content = <<<HTML
+        <main class="container py-4">
+            <div class="page-title">
+                <div>
+                    <h1>Controllo {$registry}</h1>
+                    <p>Dettaglio registro amministrativo.</p>
+                </div>
+                <a class="btn btn-sm btn-outline-secondary" href="/controls">Torna all'elenco</a>
+            </div>
+            {$flashHtml}
+            <div class="detail-grid">
+                <section class="panel">
+                    <h2>Dati generali</h2>
+                    <dl class="detail-list">
+                        <dt>Data</dt><dd>{$this->e($controlData['control_date'])} {$this->e($controlData['control_time'])}</dd>
+                        <dt>Evento</dt><dd>{$this->e($controlData['event_name'])}</dd>
+                        <dt>Attivita</dt><dd>{$this->e($controlData['business_name'])}</dd>
+                        <dt>Luogo</dt><dd>{$this->e($controlData['business_location'])}</dd>
+                        <dt>Esito</dt><dd>{$this->e($controlData['outcome'])}</dd>
+                        <dt>Stato</dt><dd>{$this->e($controlData['status'])}</dd>
+                    </dl>
+                </section>
+                <section class="panel">
+                    <h2>Dati personali cifrati</h2>
+                    <dl class="detail-list">
+                        <dt>Titolare</dt><dd>{$this->e($controlData['business_owner'] ?? '')}</dd>
+                        <dt>Trasgressore</dt><dd>{$this->e($controlData['offender'] ?? '')}</dd>
+                        <dt>CNR</dt><dd>{$this->e($controlData['cnr_number'] ?? '')}</dd>
+                        <dt>Note</dt><dd>{$this->e($controlData['notes'] ?? '')}</dd>
+                    </dl>
+                </section>
+                <section class="panel">
+                    <h2>Categorie</h2>
+                    <div class="badge-list">{$categories}</div>
+                </section>
+                <section class="panel">
+                    <h2>Agenti</h2>
+                    <div class="badge-list">{$agents}</div>
+                </section>
+                <section class="panel">
+                    <h2>Violazioni e sanzioni</h2>
+                    <dl class="detail-list">
+                        <dt>Norme violate</dt><dd>{$this->e($controlData['violated_rules'] ?? '')}</dd>
+                        <dt>Norme sanzionatrici</dt><dd>{$this->e($controlData['sanctioning_rules'] ?? '')}</dd>
+                        <dt>Totale sanzione</dt><dd>EUR {$this->e($controlData['total_sanction_amount'] ?? '0.00')}</dd>
+                    </dl>
+                </section>
+                <section class="panel">
+                    <h2>Hash e versioni</h2>
+                    <dl class="detail-list">
+                        <dt>Hash corrente</dt><dd><code>{$this->e($controlData['hash_record'])}</code></dd>
+                        <dt>Hash precedente</dt><dd><code>{$this->e($controlData['previous_hash'] ?? '')}</code></dd>
+                    </dl>
+                    <table class="table table-sm align-middle">
+                        <thead><tr><th>Versione</th><th>Motivo</th><th>Utente</th><th>Data</th></tr></thead>
+                        <tbody>{$versions}</tbody>
+                    </table>
+                </section>
+            </div>
+            {$actions}
+        </main>
+        HTML;
+
+        return $this->view('Dettaglio controllo', $content);
+    }
+
     public function store(): Response
     {
         if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio', 'operatore'])) {
@@ -234,6 +328,54 @@ final class ControlController extends Controller
         $this->flash('Controllo salvato in bozza.');
 
         return $this->redirect('/controls');
+    }
+
+    public function validate(string $control): Response
+    {
+        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+            return $response;
+        }
+
+        $request = new Request();
+
+        if (!Session::validateCsrf($request->input('_csrf_token'))) {
+            return new Response('Sessione non valida.', 419);
+        }
+
+        $user = $this->auth()->user();
+
+        try {
+            (new ControlService())->validate((int) $control, (int) $user['id']);
+            $this->flash('Controllo validato correttamente.');
+        } catch (Throwable $exception) {
+            $this->flash('Validazione non riuscita: ' . $exception->getMessage());
+        }
+
+        return $this->redirect('/controls/' . $control);
+    }
+
+    public function annul(string $control): Response
+    {
+        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+            return $response;
+        }
+
+        $request = new Request();
+
+        if (!Session::validateCsrf($request->input('_csrf_token'))) {
+            return new Response('Sessione non valida.', 419);
+        }
+
+        $user = $this->auth()->user();
+
+        try {
+            (new ControlService())->annul((int) $control, (int) $user['id'], $request->input('annulment_reason', '') ?? '');
+            $this->flash('Controllo annullato logicamente.');
+        } catch (Throwable $exception) {
+            $this->flash('Annullamento non riuscito: ' . $exception->getMessage());
+        }
+
+        return $this->redirect('/controls/' . $control);
     }
 
     private function controlData(Request $request): array
@@ -322,5 +464,84 @@ final class ControlController extends Controller
         }
 
         return $options;
+    }
+
+    private function categoryBadges(array $categories): string
+    {
+        if ($categories === []) {
+            return '<span class="text-muted">Nessuna categoria.</span>';
+        }
+
+        $badges = [];
+
+        foreach ($categories as $category) {
+            $type = (int) $category['is_primary'] === 1 ? 'principale' : 'secondaria';
+            $badges[] = '<span class="status-pill">' . $this->e($category['name']) . ' (' . $type . ')</span>';
+        }
+
+        return implode('', $badges);
+    }
+
+    private function agentBadges(array $agents): string
+    {
+        if ($agents === []) {
+            return '<span class="text-muted">Nessun agente collegato.</span>';
+        }
+
+        $badges = [];
+
+        foreach ($agents as $agent) {
+            $label = trim($agent['surname'] . ' ' . $agent['name']);
+            $badges[] = '<span class="status-pill">' . $this->e($label) . '</span>';
+        }
+
+        return implode('', $badges);
+    }
+
+    private function versionRows(array $versions): string
+    {
+        if ($versions === []) {
+            return '<tr><td colspan="4" class="text-muted">Nessuna versione.</td></tr>';
+        }
+
+        $rows = [];
+
+        foreach ($versions as $version) {
+            $rows[] = '<tr>'
+                . '<td>' . $this->e($version['version_number']) . '</td>'
+                . '<td>' . $this->e($version['change_reason']) . '</td>'
+                . '<td>' . $this->e($version['changed_by_username'] ?? '') . '</td>'
+                . '<td>' . $this->e($version['created_at']) . '</td>'
+                . '</tr>';
+        }
+
+        return implode('', $rows);
+    }
+
+    private function detailActions(array $control): string
+    {
+        if (!$this->auth()->hasRole(['amministratore', 'responsabile_ufficio']) || $control['status'] === 'annullato') {
+            return '';
+        }
+
+        $csrf = $this->csrfField();
+        $controlId = $this->e($control['id']);
+        $validateButton = $control['status'] === 'bozza'
+            ? "<form method=\"post\" action=\"/controls/{$controlId}/validate\">{$csrf}<button class=\"btn btn-sm btn-success\" type=\"submit\">Valida controllo</button></form>"
+            : '';
+
+        return <<<HTML
+        <section class="panel mt-3">
+            <h2>Azioni responsabile</h2>
+            <div class="action-row">
+                {$validateButton}
+                <form method="post" action="/controls/{$controlId}/annul" class="inline-annul-form">
+                    {$csrf}
+                    <input class="form-control form-control-sm" name="annulment_reason" placeholder="Motivo annullamento" required>
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Annulla logicamente</button>
+                </form>
+            </div>
+        </section>
+        HTML;
     }
 }
