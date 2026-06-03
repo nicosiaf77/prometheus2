@@ -300,6 +300,124 @@ final class ControlService
         }
     }
 
+    public function update(int $controlId, array $data, int $userId, string $changeReason): void
+    {
+        $pdo = Database::connection();
+        $pdo->beginTransaction();
+
+        try {
+            $control = $this->lockControl($controlId);
+
+            if ($control === null) {
+                throw new \RuntimeException('Controllo non trovato.');
+            }
+
+            if ($control['status'] === 'annullato') {
+                throw new \RuntimeException('Un controllo annullato non può essere modificato.');
+            }
+
+            $registryYear = (int) substr((string) $data['control_date'], 0, 4);
+            $eventId = $this->resolveEventId($data, $userId);
+            $encrypted = $this->encryptedFields($data);
+            $previousHash = (string) $control['hash_record'];
+            $hashPayload = [
+                'registry_number' => $control['registry_number'],
+                'registry_year' => $registryYear,
+                'control_date' => $data['control_date'],
+                'control_time' => $data['control_time'],
+                'business_name' => $data['business_name'],
+                'outcome' => $data['outcome'],
+                'updated_by' => $userId,
+                'change_reason' => $changeReason,
+            ];
+            $newHash = (new HashChainService())->calculate($hashPayload, $previousHash);
+
+            $pdo->prepare(
+                'UPDATE controls
+                 SET control_date = :control_date,
+                     control_time = :control_time,
+                     registry_year = :registry_year,
+                     has_event = :has_event,
+                     event_id = :event_id,
+                     business_name = :business_name,
+                     business_location = :business_location,
+                     business_owner_encrypted = :business_owner_encrypted,
+                     offender_encrypted = :offender_encrypted,
+                     outcome = :outcome,
+                     violated_rules = :violated_rules,
+                     sanctioning_rules = :sanctioning_rules,
+                     reduced_payment_amount = :reduced_payment_amount,
+                     minimum_amount = :minimum_amount,
+                     maximum_amount = :maximum_amount,
+                     total_sanction_amount = :total_sanction_amount,
+                     alleged_crime = :alleged_crime,
+                     cnr_number_encrypted = :cnr_number_encrypted,
+                     administrative_seizure = :administrative_seizure,
+                     administrative_seizure_description = :administrative_seizure_description,
+                     criminal_seizure = :criminal_seizure,
+                     criminal_seizure_description = :criminal_seizure_description,
+                     weapon_precautionary_withdrawal = :weapon_precautionary_withdrawal,
+                     weapon_precautionary_withdrawal_description = :weapon_precautionary_withdrawal_description,
+                     notes_encrypted = :notes_encrypted,
+                     hash_record = :hash_record,
+                     previous_hash = :previous_hash,
+                     updated_by = :updated_by,
+                     updated_at = NOW()
+                 WHERE id = :id'
+            )->execute([
+                'control_date' => $data['control_date'],
+                'control_time' => $data['control_time'],
+                'registry_year' => $registryYear,
+                'has_event' => (int) $data['has_event'],
+                'event_id' => $eventId,
+                'business_name' => $data['business_name'],
+                'business_location' => $data['business_location'],
+                'business_owner_encrypted' => $encrypted['business_owner'],
+                'offender_encrypted' => $encrypted['offender'],
+                'outcome' => $data['outcome'],
+                'violated_rules' => $data['violated_rules'] !== '' ? $data['violated_rules'] : null,
+                'sanctioning_rules' => $data['sanctioning_rules'] !== '' ? $data['sanctioning_rules'] : null,
+                'reduced_payment_amount' => $this->decimalOrNull($data['reduced_payment_amount']),
+                'minimum_amount' => $this->decimalOrNull($data['minimum_amount']),
+                'maximum_amount' => $this->decimalOrNull($data['maximum_amount']),
+                'total_sanction_amount' => $this->decimalOrNull($data['total_sanction_amount']),
+                'alleged_crime' => $data['alleged_crime'] !== '' ? $data['alleged_crime'] : null,
+                'cnr_number_encrypted' => $encrypted['cnr_number'],
+                'administrative_seizure' => (int) $data['administrative_seizure'],
+                'administrative_seizure_description' => $data['administrative_seizure_description'] !== '' ? $data['administrative_seizure_description'] : null,
+                'criminal_seizure' => (int) $data['criminal_seizure'],
+                'criminal_seizure_description' => $data['criminal_seizure_description'] !== '' ? $data['criminal_seizure_description'] : null,
+                'weapon_precautionary_withdrawal' => (int) $data['weapon_precautionary_withdrawal'],
+                'weapon_precautionary_withdrawal_description' => $data['weapon_precautionary_withdrawal_description'] !== '' ? $data['weapon_precautionary_withdrawal_description'] : null,
+                'notes_encrypted' => $encrypted['notes'],
+                'hash_record' => $newHash,
+                'previous_hash' => $previousHash,
+                'updated_by' => $userId,
+                'id' => $controlId,
+            ]);
+
+            $this->syncCategories($controlId, (int) $data['primary_category_id'], $data['secondary_category_ids'], true);
+            $this->syncAgents($controlId, $data['agent_ids'], true);
+
+            $updatedControl = $this->lockControl($controlId);
+            $this->createVersionFromSnapshot(
+                $controlId,
+                array_merge((array) $updatedControl, ['change_data' => $data]),
+                $newHash,
+                $previousHash,
+                $userId,
+                $changeReason
+            );
+
+            (new AuditService())->record(AuditActions::CONTROL_UPDATED, 'controls', $controlId, 'Controllo modificato: ' . $changeReason);
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            $pdo->rollBack();
+
+            throw $exception;
+        }
+    }
+
     public function validate(int $controlId, int $userId): void
     {
         $pdo = Database::connection();
@@ -482,9 +600,15 @@ final class ControlService
         return $normalized !== '' && is_numeric($normalized) ? number_format((float) $normalized, 2, '.', '') : null;
     }
 
-    private function syncCategories(int $controlId, int $primaryCategoryId, array $secondaryCategoryIds): void
+    private function syncCategories(int $controlId, int $primaryCategoryId, array $secondaryCategoryIds, bool $replace = false): void
     {
         $pdo = Database::connection();
+
+        if ($replace) {
+            $pdo->prepare('DELETE FROM control_activity_category WHERE control_id = :control_id')
+                ->execute(['control_id' => $controlId]);
+        }
+
         $statement = $pdo->prepare(
             'INSERT INTO control_activity_category (control_id, activity_category_id, is_primary, created_at, updated_at)
              VALUES (:control_id, :activity_category_id, :is_primary, NOW(), NOW())'
@@ -508,9 +632,16 @@ final class ControlService
         }
     }
 
-    private function syncAgents(int $controlId, array $agentIds): void
+    private function syncAgents(int $controlId, array $agentIds, bool $replace = false): void
     {
-        $statement = Database::connection()->prepare(
+        $pdo = Database::connection();
+
+        if ($replace) {
+            $pdo->prepare('DELETE FROM agent_control WHERE control_id = :control_id')
+                ->execute(['control_id' => $controlId]);
+        }
+
+        $statement = $pdo->prepare(
             'INSERT INTO agent_control (control_id, agent_id, role_in_control, created_at, updated_at)
              VALUES (:control_id, :agent_id, NULL, NOW(), NOW())'
         );

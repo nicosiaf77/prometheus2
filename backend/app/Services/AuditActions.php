@@ -13,6 +13,7 @@ final class AuditActions
     public const EVENT_CREATED = 'EVENT_CREATED';
     public const AGENT_CREATED = 'AGENT_CREATED';
     public const CONTROL_CREATED = 'CONTROL_CREATED';
+    public const CONTROL_UPDATED = 'CONTROL_UPDATED';
     public const CONTROL_VALIDATED = 'CONTROL_VALIDATED';
     public const CONTROL_ANNULLED = 'CONTROL_ANNULLED';
     public const CONTROL_VIEWED = 'CONTROL_VIEWED';
@@ -20,4 +21,5 @@ final class AuditActions
     public const BACKUP_CREATED = 'BACKUP_CREATED';
     public const INTEGRITY_CHECK = 'INTEGRITY_CHECK';
     public const USER_CREATED = 'USER_CREATED';
+    public const USER_UPDATED = 'USER_UPDATED';
 }

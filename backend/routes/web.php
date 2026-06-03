@@ -26,6 +26,7 @@ $router->get('/controls', [ControlController::class, 'index']);
 $router->get('/controls/create', [ControlController::class, 'create']);
 $router->post('/controls', [ControlController::class, 'store']);
 $router->get('/controls/{control}', [ControlController::class, 'show']);
+$router->put('/controls/{control}', [ControlController::class, 'update']);
 $router->post('/controls/{control}/validate', [ControlController::class, 'validate']);
 $router->post('/controls/{control}/annul', [ControlController::class, 'annul']);
 $router->get('/events', [EventController::class, 'index']);

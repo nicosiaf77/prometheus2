@@ -18,6 +18,11 @@ final class Router
         $this->routes['POST'][$path] = $handler;
     }
 
+    public function put(string $path, array $handler): void
+    {
+        $this->routes['PUT'][$path] = $handler;
+    }
+
     public function dispatch(string $method, string $uri): Response
     {
         $method = $method === 'HEAD' ? 'GET' : $method;

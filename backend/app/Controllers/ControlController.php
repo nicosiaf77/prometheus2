@@ -10,6 +10,7 @@ use Prometheus\Core\Response;
 use Prometheus\Core\Session;
 use Prometheus\Core\Validator;
 use Prometheus\Requests\StoreControlRequest;
+use Prometheus\Requests\UpdateControlRequest;
 use Prometheus\Services\ActivityCategoryService;
 use Prometheus\Services\AgentService;
 use Prometheus\Services\AuditActions;
@@ -136,6 +137,65 @@ final class ControlController extends Controller
             'message' => 'Controllo salvato in bozza.',
             'control_id' => $controlId,
         ], 201);
+    }
+
+    public function update(string $control): Response
+    {
+        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio', 'operatore'])) {
+            return $response;
+        }
+
+        $request = new Request();
+
+        if (!Session::validateCsrf($request->input('_csrf_token'))) {
+            return $this->error('Sessione non valida.', 419);
+        }
+
+        if (!ctype_digit($control)) {
+            return $this->error('Controllo non trovato.', 404);
+        }
+
+        $user = $this->auth()->user();
+
+        if ($user === null) {
+            return $this->error('Utente non valido.', 422);
+        }
+
+        $data = $this->controlData($request);
+        $changeReason = trim($request->input('change_reason', '') ?? '');
+        $data['change_reason'] = $changeReason;
+        $errors = (new Validator())->validate($data, (new UpdateControlRequest())->rules());
+        $errors = $this->withControlConditionalErrors($data, $errors);
+
+        if ($errors !== []) {
+            return $this->validationError($errors);
+        }
+
+        $existing = (new ControlService())->find((int) $control);
+
+        if ($existing === null) {
+            return $this->error('Controllo non trovato.', 404);
+        }
+
+        if ($existing['status'] === 'annullato') {
+            return $this->error('Un controllo annullato non può essere modificato.', 422);
+        }
+
+        if ($existing['status'] === 'validato' && !$this->auth()->hasRole(['amministratore', 'responsabile_ufficio'])) {
+            return $this->error('Solo amministratore o responsabile ufficio può modificare un controllo validato.', 403);
+        }
+
+        try {
+            (new ControlService())->update((int) $control, $data, (int) $user['id'], $changeReason);
+        } catch (Throwable $exception) {
+            return $this->error('Modifica non riuscita: ' . $exception->getMessage(), 500);
+        }
+
+        return $this->json([
+            'ok' => true,
+            'message' => 'Controllo aggiornato correttamente.',
+            'control_id' => (int) $control,
+        ]);
     }
 
     public function validate(string $control): Response
