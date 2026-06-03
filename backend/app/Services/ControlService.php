@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Prometheus\Services;
 
+use PDO;
 use Prometheus\Core\Database;
 use Prometheus\Core\Env;
-use PDO;
+use Prometheus\Models\Control;
 use Throwable;
 
 final class ControlService
@@ -18,11 +19,23 @@ final class ControlService
                     controls.registry_number,
                     controls.registry_year,
                     controls.control_date,
+                    controls.control_time,
+                    controls.has_event,
                     COALESCE(events.name, 'Nessuno') AS event_name,
                     controls.business_name,
                     controls.business_location,
                     controls.outcome,
-                    controls.status
+                    controls.status,
+                    controls.total_sanction_amount,
+                    (
+                        SELECT activity_categories.name
+                        FROM control_activity_category
+                        INNER JOIN activity_categories
+                            ON activity_categories.id = control_activity_category.activity_category_id
+                        WHERE control_activity_category.control_id = controls.id
+                          AND control_activity_category.is_primary = 1
+                        LIMIT 1
+                    ) AS primary_category_name
              FROM controls
              LEFT JOIN events ON events.id = controls.event_id
              ORDER BY controls.created_at DESC
@@ -143,12 +156,33 @@ final class ControlService
                     controls.registry_number,
                     controls.registry_year,
                     controls.control_date,
+                    controls.control_time,
+                    controls.has_event,
                     COALESCE(events.name, 'Nessuno') AS event_name,
                     controls.business_name,
                     controls.business_location,
                     controls.outcome,
                     controls.status,
-                    controls.total_sanction_amount
+                    controls.total_sanction_amount,
+                    (
+                        SELECT activity_categories.name
+                        FROM control_activity_category
+                        INNER JOIN activity_categories
+                            ON activity_categories.id = control_activity_category.activity_category_id
+                        WHERE control_activity_category.control_id = controls.id
+                          AND control_activity_category.is_primary = 1
+                        LIMIT 1
+                    ) AS primary_category_name,
+                    (
+                        SELECT GROUP_CONCAT(
+                            CONCAT(agents.surname, ' ', agents.name)
+                            ORDER BY agents.surname, agents.name
+                            SEPARATOR ', '
+                        )
+                        FROM agent_control
+                        INNER JOIN agents ON agents.id = agent_control.agent_id
+                        WHERE agent_control.control_id = controls.id
+                    ) AS agents_names
              {$fromSql}
              {$whereSql}
              ORDER BY {$sortColumn} {$sortDirection}, controls.registry_number {$sortDirection}
@@ -199,10 +233,18 @@ final class ControlService
             return null;
         }
 
+        // Decifratura — i campi plain sostituiscono gli encrypted che vengono rimossi
         $control['business_owner'] = $this->decryptNullable($control['business_owner_encrypted']);
-        $control['offender'] = $this->decryptNullable($control['offender_encrypted']);
-        $control['cnr_number'] = $this->decryptNullable($control['cnr_number_encrypted']);
-        $control['notes'] = $this->decryptNullable($control['notes_encrypted']);
+        $control['offender']       = $this->decryptNullable($control['offender_encrypted']);
+        $control['cnr_number']     = $this->decryptNullable($control['cnr_number_encrypted']);
+        $control['notes']          = $this->decryptNullable($control['notes_encrypted']);
+
+        unset(
+            $control['business_owner_encrypted'],
+            $control['offender_encrypted'],
+            $control['cnr_number_encrypted'],
+            $control['notes_encrypted']
+        );
 
         $allCategories = $this->categories($id);
         $control['primary_category'] = null;
@@ -305,7 +347,7 @@ final class ControlService
                 'weapon_precautionary_withdrawal' => (int) $data['weapon_precautionary_withdrawal'],
                 'weapon_precautionary_withdrawal_description' => $data['weapon_precautionary_withdrawal_description'] !== '' ? $data['weapon_precautionary_withdrawal_description'] : null,
                 'notes_encrypted' => $encrypted['notes'],
-                'status' => 'bozza',
+                'status' => Control::STATUS_DRAFT,
                 'hash_record' => $hash,
                 'created_by' => $userId,
             ]);
@@ -338,7 +380,7 @@ final class ControlService
                 throw new \RuntimeException('Controllo non trovato.');
             }
 
-            if ($control['status'] === 'annullato') {
+            if ($control['status'] === Control::STATUS_ANNULLED) {
                 throw new \RuntimeException('Un controllo annullato non può essere modificato.');
             }
 
@@ -456,17 +498,17 @@ final class ControlService
                 throw new \RuntimeException('Controllo non trovato.');
             }
 
-            if ($control['status'] === 'annullato') {
+            if ($control['status'] === Control::STATUS_ANNULLED) {
                 throw new \RuntimeException('Un controllo annullato non puo essere validato.');
             }
 
-            if ($control['status'] === 'validato') {
+            if ($control['status'] === Control::STATUS_VALIDATED) {
                 throw new \RuntimeException('Il controllo risulta gia validato.');
             }
 
             $previousHash = (string) $control['hash_record'];
             $snapshot = array_merge($control, [
-                'status' => 'validato',
+                'status' => Control::STATUS_VALIDATED,
                 'validated_by' => $userId,
                 'validated_at' => date('Y-m-d H:i:s'),
             ]);
@@ -483,7 +525,7 @@ final class ControlService
                      updated_at = NOW()
                  WHERE id = :id'
             )->execute([
-                'status' => 'validato',
+                'status' => Control::STATUS_VALIDATED,
                 'validated_by' => $userId,
                 'updated_by' => $userId,
                 'hash_record' => $newHash,
@@ -519,13 +561,13 @@ final class ControlService
                 throw new \RuntimeException('Controllo non trovato.');
             }
 
-            if ($control['status'] === 'annullato') {
+            if ($control['status'] === Control::STATUS_ANNULLED) {
                 throw new \RuntimeException('Il controllo risulta gia annullato.');
             }
 
             $previousHash = (string) $control['hash_record'];
             $snapshot = array_merge($control, [
-                'status' => 'annullato',
+                'status' => Control::STATUS_ANNULLED,
                 'annulled_by' => $userId,
                 'annulled_at' => date('Y-m-d H:i:s'),
                 'annulment_reason' => $reason,
@@ -544,7 +586,7 @@ final class ControlService
                      updated_at = NOW()
                  WHERE id = :id'
             )->execute([
-                'status' => 'annullato',
+                'status' => Control::STATUS_ANNULLED,
                 'annulled_by' => $userId,
                 'annulment_reason' => $reason,
                 'updated_by' => $userId,

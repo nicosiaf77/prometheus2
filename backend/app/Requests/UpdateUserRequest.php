@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Prometheus\Requests;
 
+use Prometheus\Models\User;
+
 final class UpdateUserRequest
 {
     public function rules(): array
@@ -12,7 +14,7 @@ final class UpdateUserRequest
             'name'    => ['required'],
             'surname' => ['required'],
             'email'   => ['required', 'email'],
-            'role'    => ['required', 'in:amministratore,responsabile_ufficio,operatore,lettore'],
+            'role'    => ['required', 'in:' . implode(',', User::ROLES)],
         ];
     }
 }

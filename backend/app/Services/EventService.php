@@ -36,6 +36,47 @@ final class EventService
         ]);
     }
 
+    public function find(int $id): ?array
+    {
+        $statement = Database::connection()->prepare(
+            'SELECT events.id, events.name, users.username AS created_by_username, events.created_at, events.updated_at
+             FROM events
+             LEFT JOIN users ON users.id = events.created_by
+             WHERE events.id = :id
+             LIMIT 1'
+        );
+        $statement->execute(['id' => $id]);
+        $event = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($event) ? $event : null;
+    }
+
+    public function update(int $id, string $name): void
+    {
+        $normalizedName = mb_strtoupper(trim($name), 'UTF-8');
+
+        Database::connection()->prepare(
+            'UPDATE events SET name = :name, updated_at = NOW() WHERE id = :id'
+        )->execute(['name' => $normalizedName, 'id' => $id]);
+    }
+
+    public function isNameTaken(string $name, ?int $excludeId = null): bool
+    {
+        $normalized = mb_strtoupper(trim($name), 'UTF-8');
+        $sql        = 'SELECT COUNT(*) FROM events WHERE name = :name';
+        $params     = ['name' => $normalized];
+
+        if ($excludeId !== null) {
+            $sql .= ' AND id != :exclude_id';
+            $params['exclude_id'] = $excludeId;
+        }
+
+        $stmt = Database::connection()->prepare($sql);
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
     public function findByName(string $name): ?array
     {
         $statement = Database::connection()->prepare('SELECT * FROM events WHERE name = :name LIMIT 1');

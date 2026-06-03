@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Prometheus\Controllers;
 
 use Prometheus\Core\Controller;
+use Prometheus\Models\User;
 use Prometheus\Core\Request;
 use Prometheus\Core\Response;
 use Prometheus\Core\Session;
@@ -46,7 +47,7 @@ final class ActivityCategoryController extends Controller
 
     public function store(): Response
     {
-        if ($response = $this->requireRoles(['amministratore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN])) {
             return $response;
         }
 
@@ -84,7 +85,7 @@ final class ActivityCategoryController extends Controller
 
     public function update(string $category): Response
     {
-        if ($response = $this->requireRoles(['amministratore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN])) {
             return $response;
         }
 
@@ -127,7 +128,7 @@ final class ActivityCategoryController extends Controller
 
     public function deactivate(string $category): Response
     {
-        if ($response = $this->requireRoles(['amministratore'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN])) {
             return $response;
         }
 

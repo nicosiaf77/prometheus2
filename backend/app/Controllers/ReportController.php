@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Prometheus\Controllers;
 
 use Prometheus\Core\Controller;
+use Prometheus\Models\User;
 use Prometheus\Core\Request;
 use Prometheus\Core\Response;
 use Prometheus\Services\ReportService;
@@ -14,16 +15,18 @@ final class ReportController extends Controller
 {
     public function index(): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 
         return $this->json([
             'ok'      => true,
             'exports' => [
-                ['name' => 'Controlli CSV',   'method' => 'GET', 'endpoint' => '/reports/controls.csv',  'format' => 'text/csv'],
-                ['name' => 'Controlli Excel',  'method' => 'GET', 'endpoint' => '/reports/controls.xlsx', 'format' => 'application/vnd.ms-excel'],
-                ['name' => 'Controlli PDF',    'method' => 'GET', 'endpoint' => '/reports/controls.pdf',  'format' => 'application/pdf'],
+                ['name' => 'Controlli CSV',       'method' => 'GET', 'endpoint' => '/reports/controls.csv',    'format' => 'text/csv'],
+                ['name' => 'Controlli Excel (XLS)', 'method' => 'GET', 'endpoint' => '/reports/controls.xls',    'format' => 'application/vnd.ms-excel'],
+                ['name' => 'Controlli PDF',        'method' => 'GET', 'endpoint' => '/reports/controls.pdf',    'format' => 'application/pdf'],
+                ['name' => 'Statistiche PDF',      'method' => 'GET', 'endpoint' => '/reports/statistics.pdf',  'format' => 'application/pdf'],
+                ['name' => 'Scheda controllo PDF', 'method' => 'GET', 'endpoint' => '/controls/{id}/pdf',       'format' => 'application/pdf'],
             ],
             'filters' => [
                 'registry_number', 'registry_year', 'date_from', 'date_to',
@@ -38,9 +41,9 @@ final class ReportController extends Controller
         return $this->exportResponse('controlsCsv', 'text/csv; charset=UTF-8');
     }
 
-    public function controlsXlsx(): Response
+    public function controlsXls(): Response
     {
-        return $this->exportResponse('controlsXlsx', 'application/vnd.ms-excel');
+        return $this->exportResponse('controlsXls', 'application/vnd.ms-excel');
     }
 
     public function controlsPdf(): Response
@@ -48,9 +51,39 @@ final class ReportController extends Controller
         return $this->exportResponse('controlsPdf', 'application/pdf');
     }
 
+    public function statisticsPdf(): Response
+    {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
+            return $response;
+        }
+
+        $user    = $this->auth()->user();
+        $request = new Request();
+        $filters = [
+            'year'        => $request->input('year', (string) date('Y')) ?? (string) date('Y'),
+            'month'       => $request->input('month', '') ?? '',
+            'date_from'   => $request->input('date_from', '') ?? '',
+            'date_to'     => $request->input('date_to', '') ?? '',
+            'outcome'     => $request->input('outcome', '') ?? '',
+            'event_id'    => $request->input('event_id', '') ?? '',
+            'category_id' => $request->input('category_id', '') ?? '',
+        ];
+
+        try {
+            $export = (new \Prometheus\Services\ReportService())->statisticsPdf($filters, (int) $user['id']);
+        } catch (\Throwable $exception) {
+            return $this->error('Generazione PDF statistiche non riuscita: ' . $exception->getMessage(), 500);
+        }
+
+        return new Response($export['content'], 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $export['file_name'] . '"',
+        ]);
+    }
+
     private function exportResponse(string $method, string $contentType): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Prometheus\Controllers;
 
 use Prometheus\Core\Controller;
+use Prometheus\Models\User;
 use Prometheus\Core\Request;
 use Prometheus\Core\Response;
 use Prometheus\Core\Session;
@@ -48,7 +49,7 @@ final class AgentController extends Controller
 
     public function store(): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 
@@ -88,7 +89,7 @@ final class AgentController extends Controller
 
     public function update(string $agent): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 
@@ -125,7 +126,7 @@ final class AgentController extends Controller
 
         try {
             $service->update($agentId, $data);
-            (new AuditService())->record(AuditActions::AGENT_CREATED, 'agents', $agentId, 'Agente aggiornato: ' . $data['surname'] . ' ' . $data['name']);
+            (new AuditService())->record(AuditActions::AGENT_UPDATED, 'agents', $agentId, 'Agente aggiornato: ' . $data['surname'] . ' ' . $data['name']);
         } catch (Throwable $exception) {
             return $this->error('Aggiornamento agente non riuscito: ' . $exception->getMessage(), 500);
         }
@@ -135,7 +136,7 @@ final class AgentController extends Controller
 
     public function deactivate(string $agent): Response
     {
-        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
+        if ($response = $this->requireRoles([User::ROLE_ADMIN, User::ROLE_MANAGER])) {
             return $response;
         }
 
@@ -158,7 +159,7 @@ final class AgentController extends Controller
 
         try {
             $service->setActive($agentId, false);
-            (new AuditService())->record(AuditActions::AGENT_CREATED, 'agents', $agentId, 'Agente disattivato id ' . $agentId);
+            (new AuditService())->record(AuditActions::AGENT_UPDATED, 'agents', $agentId, 'Agente disattivato id ' . $agentId);
         } catch (Throwable $exception) {
             return $this->error('Disattivazione non riuscita: ' . $exception->getMessage(), 500);
         }

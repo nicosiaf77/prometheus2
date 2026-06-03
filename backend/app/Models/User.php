@@ -6,8 +6,15 @@ namespace Prometheus\Models;
 
 final class User
 {
-    public const ROLE_ADMIN = 'amministratore';
-    public const ROLE_MANAGER = 'responsabile_ufficio';
+    public const ROLE_ADMIN    = 'amministratore';
+    public const ROLE_MANAGER  = 'responsabile_ufficio';
     public const ROLE_OPERATOR = 'operatore';
-    public const ROLE_READER = 'lettore';
+    public const ROLE_READER   = 'lettore';
+
+    public const ROLES = [
+        self::ROLE_ADMIN,
+        self::ROLE_MANAGER,
+        self::ROLE_OPERATOR,
+        self::ROLE_READER,
+    ];
 }
