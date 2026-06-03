@@ -160,6 +160,10 @@ function getControl(id) {
   return request("GET", `/controls/${id}`);
 }
 
+function downloadControlPdf(id) {
+  return request("GET", `/controls/${id}/pdf`, { expectBlob: true });
+}
+
 function getControlMeta() {
   return request("GET", "/controls/create");
 }
@@ -189,6 +193,7 @@ export {
   createControl,
   dashboard,
   downloadControlsCsv,
+  downloadControlPdf,
   downloadControlsPdf,
   downloadControlsXls,
   getControl,

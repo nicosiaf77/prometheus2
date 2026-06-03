@@ -5,6 +5,8 @@ const state = {
   summary: null,
   controls: null,
   controlsError: "",
+  controlDetail: null,
+  controlDetailError: "",
   activePage: "dashboard",
   loadingPage: false,
   view: "loading",
@@ -140,6 +142,26 @@ async function handleClick(event) {
     }
 
     await loadControls(controlFilterDefaults);
+    return;
+  }
+
+  if (action.dataset.action === "control-detail") {
+    event.preventDefault();
+    await loadControlDetail(action.dataset.controlId);
+    return;
+  }
+
+  if (action.dataset.action === "back-to-controls") {
+    event.preventDefault();
+    state.activePage = "controls";
+    state.controlDetailError = "";
+    render();
+    return;
+  }
+
+  if (action.dataset.action === "download-control-pdf") {
+    event.preventDefault();
+    await handleControlPdfDownload(action.dataset.controlId);
   }
 }
 
@@ -240,6 +262,68 @@ async function loadControls(overrides = {}) {
     }
   } finally {
     state.loadingPage = false;
+    render();
+  }
+}
+
+async function loadControlDetail(controlId) {
+  if (!controlId) {
+    return;
+  }
+
+  state.loadingPage = true;
+  state.activePage = "control-detail";
+  state.controlDetail = null;
+  state.controlDetailError = "";
+  render();
+
+  try {
+    const payload = await api.getControl(controlId);
+    state.controlDetail = {
+      control: payload.control,
+      availableActions: payload.available_actions ?? [],
+    };
+  } catch (error) {
+    if (error.code === 401) {
+      state.user = null;
+      state.summary = null;
+      state.controls = null;
+      state.controlDetail = null;
+      state.view = "login";
+      render();
+      return;
+    }
+
+    if (error.code === 404) {
+      state.controlDetailError = "Controllo non trovato.";
+    } else if (error.code === 403) {
+      state.controlDetailError = "Permessi insufficienti per consultare questo controllo.";
+    } else {
+      state.controlDetailError = error.error ?? "Errore nel caricamento dettaglio controllo.";
+    }
+  } finally {
+    state.loadingPage = false;
+    render();
+  }
+}
+
+async function handleControlPdfDownload(controlId) {
+  if (!controlId) {
+    return;
+  }
+
+  try {
+    const file = await api.downloadControlPdf(controlId);
+    downloadBlob(file.blob, file.fileName ?? `control-${controlId}.pdf`);
+  } catch (error) {
+    if (error.code === 401) {
+      state.user = null;
+      state.view = "login";
+      render();
+      return;
+    }
+
+    state.controlDetailError = error.error ?? "Download PDF non riuscito.";
     render();
   }
 }
@@ -412,6 +496,10 @@ function renderApplication() {
 }
 
 function renderActivePage(summary) {
+  if (state.activePage === "control-detail") {
+    return renderControlDetailPage();
+  }
+
   if (state.activePage === "controls") {
     return renderControlsPage();
   }
@@ -590,7 +678,11 @@ function renderControlsTable(rows) {
   const body = rows
     .map((row) => `
       <tr>
-        <td>${escapeHtml(formatRegistry(row.registry_number, row.registry_year))}</td>
+        <td>
+          <button class="link-button" type="button" data-action="control-detail" data-control-id="${escapeHtml(String(row.id ?? ""))}">
+            ${escapeHtml(formatRegistry(row.registry_number, row.registry_year))}
+          </button>
+        </td>
         <td>${escapeHtml(row.control_date ?? "-")}<br><span class="subtle">${escapeHtml(row.control_time ?? "")}</span></td>
         <td>${escapeHtml(row.business_name ?? "-")}<br><span class="subtle">${escapeHtml(row.business_location ?? "-")}</span></td>
         <td>${escapeHtml(row.primary_category_name ?? "-")}</td>
@@ -620,6 +712,101 @@ function renderControlsTable(rows) {
         <tbody>${body}</tbody>
       </table>
     </div>
+  `;
+}
+
+function renderControlDetailPage() {
+  if (state.loadingPage) {
+    return `
+      <section class="panel page-header">
+        <div>
+          <p class="eyebrow">Controllo</p>
+          <h1>Dettaglio controllo</h1>
+          <p>Caricamento in corso.</p>
+        </div>
+      </section>
+    `;
+  }
+
+  if (state.controlDetailError) {
+    return `
+      <section class="panel page-header">
+        <div>
+          <p class="eyebrow">Controllo</p>
+          <h1>Dettaglio controllo</h1>
+          <p>${escapeHtml(state.controlDetailError)}</p>
+        </div>
+      </section>
+      <section class="panel table-panel">
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-action="back-to-controls">Torna alla lista</button>
+      </section>
+    `;
+  }
+
+  const detail = state.controlDetail?.control;
+
+  if (!detail) {
+    return "";
+  }
+
+  const actions = state.controlDetail?.availableActions ?? [];
+
+  return `
+    <section class="panel page-header">
+      <div class="detail-header">
+        <div>
+          <p class="eyebrow">Controllo</p>
+          <h1>${escapeHtml(formatRegistry(detail.registry_number, detail.registry_year))}</h1>
+          <p>${escapeHtml(detail.business_name ?? "-")} · ${escapeHtml(detail.control_date ?? "-")}</p>
+        </div>
+        <div class="detail-actions">
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-action="back-to-controls">Torna alla lista</button>
+          ${canDownloadControlPdf() ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="download-control-pdf" data-control-id="${escapeHtml(String(detail.id))}">PDF</button>` : ""}
+        </div>
+      </div>
+    </section>
+    ${state.controlDetailError ? `<div class="notice error">${escapeHtml(state.controlDetailError)}</div>` : ""}
+    <section class="detail-grid">
+      <article class="panel detail-card">
+        <h2>Dati principali</h2>
+        ${renderDefinitionList([
+          ["Registro", formatRegistry(detail.registry_number, detail.registry_year)],
+          ["Data", detail.control_date ?? "-"],
+          ["Ora", detail.control_time ?? "-"],
+          ["Esito", detail.outcome ?? "-"],
+          ["Stato", detail.status ?? "-"],
+          ["Evento", detail.event_name ?? "-"],
+          ["Attività", detail.business_name ?? "-"],
+          ["Luogo", detail.business_location ?? "-"],
+        ])}
+      </article>
+      <article class="panel detail-card">
+        <h2>Soggetti e categorie</h2>
+        ${renderDefinitionList([
+          ["Titolare", detail.business_owner ?? "-"],
+          ["Trasgressore", detail.offender ?? "-"],
+          ["Categoria principale", detail.primary_category?.name ?? "-"],
+          ["Categorie secondarie", joinNames(detail.secondary_categories, "name")],
+          ["Agenti", joinPeople(detail.agents)],
+        ])}
+      </article>
+      <article class="panel detail-card">
+        <h2>Provvedimenti</h2>
+        ${renderDefinitionList([
+          ["Norme violate", detail.violated_rules ?? "-"],
+          ["Norme sanzionatorie", detail.sanctioning_rules ?? "-"],
+          ["Sanzione totale", formatNullableCurrency(detail.total_sanction_amount)],
+          ["Reato ipotizzato", detail.alleged_crime ?? "-"],
+          ["CNR", detail.cnr_number ?? "-"],
+          ["Note", detail.notes ?? "-"],
+        ])}
+      </article>
+      <article class="panel detail-card">
+        <h2>Azioni e versioni</h2>
+        <p class="subtle">Azioni disponibili dal backend: ${actions.length ? actions.map((item) => item.name).join(", ") : "nessuna"}</p>
+        ${renderVersions(detail.versions ?? [])}
+      </article>
+    </section>
   `;
 }
 
@@ -656,6 +843,10 @@ function isImplementedPage(page) {
 }
 
 function canExport() {
+  return ["amministratore", "responsabile_ufficio"].includes(state.user?.role);
+}
+
+function canDownloadControlPdf() {
   return ["amministratore", "responsabile_ufficio"].includes(state.user?.role);
 }
 
@@ -720,6 +911,90 @@ function normalizeControlFilters(filters) {
     sort: String(filters.sort ?? controlFilterDefaults.sort),
     direction: String(filters.direction ?? controlFilterDefaults.direction),
   };
+}
+
+function renderDefinitionList(entries) {
+  return `
+    <dl class="detail-list">
+      ${entries
+        .map(([label, value]) => `
+          <div>
+            <dt>${escapeHtml(label)}</dt>
+            <dd>${escapeHtml(value || "-")}</dd>
+          </div>
+        `)
+        .join("")}
+    </dl>
+  `;
+}
+
+function renderVersions(versions) {
+  if (!versions.length) {
+    return `<div class="empty-state">Nessuna versione disponibile.</div>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Versione</th>
+            <th>Data</th>
+            <th>Utente</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${versions
+            .map((version) => `
+              <tr>
+                <td>${escapeHtml(String(version.version_number ?? "-"))}</td>
+                <td>${escapeHtml(version.created_at ?? "-")}</td>
+                <td>${escapeHtml(version.changed_by_username ?? "-")}</td>
+                <td>${escapeHtml(version.change_reason ?? "-")}</td>
+              </tr>
+            `)
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function joinNames(items, field) {
+  if (!Array.isArray(items) || !items.length) {
+    return "-";
+  }
+
+  return items.map((item) => item?.[field]).filter(Boolean).join(", ") || "-";
+}
+
+function joinPeople(items) {
+  if (!Array.isArray(items) || !items.length) {
+    return "-";
+  }
+
+  return items
+    .map((item) => [item?.surname, item?.name].filter(Boolean).join(" ").trim())
+    .filter(Boolean)
+    .join(", ") || "-";
+}
+
+function formatNullableCurrency(value) {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+
+  return formatCurrency(value);
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function formatNumber(value) {
