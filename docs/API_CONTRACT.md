@@ -68,6 +68,8 @@ GET /statistics
 GET /reports
 ```
 
+`GET /statistics` accetta filtri query `year`, `month`, `date_from`, `date_to`, `outcome` e restituisce dashboard HTML con aggregati backend.
+
 ### Amministrazione
 
 ```text
