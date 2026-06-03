@@ -4,6 +4,8 @@ Documento operativo a cura di `nicosiaf77` (backend).
 Aggiornato ad ogni nuova funzione esposta al frontend.
 Da leggere e tenere sincronizzato da `nicosiagiuseppe85` (frontend).
 
+**Ultimo aggiornamento:** 2026-06-03 — aggiornamenti lista controlli, statistiche complete, eventi show/update, PDF statistiche.
+
 Ogni sezione descrive un endpoint: metodo HTTP, URL, permessi richiesti,
 parametri accettati, struttura della risposta e note di utilizzo.
 
@@ -204,9 +206,12 @@ Lista controlli con filtri, paginazione e ordinamento.
   "data": [
     {
       "id": 3, "registry_number": 3, "registry_year": 2026,
-      "control_date": "2026-06-03", "event_name": "Nessuno",
+      "control_date": "2026-06-03", "control_time": "10:00",
+      "has_event": 0, "event_name": "Nessuno",
       "business_name": "Bar Roma", "business_location": "Via Roma 1",
-      "outcome": "positivo", "status": "bozza", "total_sanction_amount": null
+      "outcome": "positivo", "status": "bozza",
+      "total_sanction_amount": null,
+      "primary_category_name": "Somministrazione alimenti e bevande"
     }
   ],
   "meta": { "page": 1, "per_page": 25, "total": 4, "last_page": 1, "sort": "control_date", "direction": "desc" }
@@ -445,6 +450,30 @@ Lista di tutti gli eventi creati.
 
 ---
 
+### `GET /events/{id}`
+Dettaglio singolo evento.
+
+**Permessi:** autenticato
+
+**Risposta:**
+```json
+{ "ok": true, "event": { "id": 1, "name": "ETNA COMICS", "created_by_username": "nicosiaf77", "created_at": "..." } }
+```
+
+---
+
+### `PUT /events/{id}`
+Rinomina un evento esistente. Il nome viene convertito in maiuscolo.
+Verifica l'unicità prima di salvare.
+
+**Permessi:** amministratore, responsabile_ufficio
+
+**Payload:** `{ "_csrf_token": "...", "name": "Nuovo nome evento" }`
+
+**Errori:** `422` se il nome è già usato da un altro evento.
+
+---
+
 ### `POST /events`
 Crea un nuovo evento. Il nome viene convertito in maiuscolo automaticamente.
 Se l'evento esiste già con lo stesso nome, non genera duplicati (upsert).
@@ -581,6 +610,8 @@ Restituisce aggregati statistici per alimentare grafici e dashboard.
 | `date_from` | Data da YYYY-MM-DD |
 | `date_to` | Data a YYYY-MM-DD |
 | `outcome` | Filtro esito: `positivo` / `negativo` / `in_accertamento` |
+| `event_id` | ID evento specifico (filtra solo i controlli di quell'evento) |
+| `category_id` | ID categoria (filtra i controlli che hanno quella categoria, primaria o secondaria) |
 
 **Risposta:**
 ```json
@@ -603,10 +634,10 @@ Restituisce aggregati statistici per alimentare grafici e dashboard.
       "weapon_withdrawals": 1
     },
     "by_category": [
-      { "name": "Somministrazione alimenti e bevande", "total": 18, "sanctions": "9800.00" }
+      { "id": 2, "name": "Somministrazione alimenti e bevande", "total": 18, "positive": 14, "negative": 3, "investigation": 1, "sanctions": "9800.00" }
     ],
     "by_agent": [
-      { "name": "Rossi Mario", "total": 25 }
+      { "id": 1, "name": "Rossi Mario", "rank": "Ass. Capo", "total": 25 }
     ],
     "by_event": [
       { "name": "ETNA COMICS", "total": 7, "sanctions": "3200.00" },
@@ -632,9 +663,11 @@ Catalogo degli export disponibili.
 {
   "ok": true,
   "exports": [
-    { "name": "Controlli CSV",   "method": "GET", "endpoint": "/reports/controls.csv",  "format": "text/csv" },
-    { "name": "Controlli Excel", "method": "GET", "endpoint": "/reports/controls.xlsx", "format": "application/vnd.ms-excel" },
-    { "name": "Controlli PDF",   "method": "GET", "endpoint": "/reports/controls.pdf",  "format": "application/pdf" }
+    { "name": "Controlli CSV",        "method": "GET", "endpoint": "/reports/controls.csv",   "format": "text/csv" },
+    { "name": "Controlli Excel",      "method": "GET", "endpoint": "/reports/controls.xlsx",  "format": "application/vnd.ms-excel" },
+    { "name": "Controlli PDF",        "method": "GET", "endpoint": "/reports/controls.pdf",   "format": "application/pdf" },
+    { "name": "Statistiche PDF",      "method": "GET", "endpoint": "/reports/statistics.pdf", "format": "application/pdf" },
+    { "name": "Scheda controllo PDF", "method": "GET", "endpoint": "/controls/{id}/pdf",      "format": "application/pdf" }
   ]
 }
 ```
@@ -675,6 +708,19 @@ Generato lato server in puro PHP, senza dipendenze esterne.
 **Query parameters:** stessi filtri di `GET /controls`.
 
 **Risposta:** file `application/pdf` con tabella A4.
+
+---
+
+### `GET /reports/statistics.pdf`
+Esporta le statistiche correnti in formato PDF.
+Include riepilogo generale, tabella per categoria (con breakdown positivi/negativi/accertamento), tabella per agente e tabella per evento.
+Accetta gli stessi filtri di `GET /statistics`.
+
+**Permessi:** amministratore, responsabile_ufficio
+
+**Query parameters:** `year`, `month`, `date_from`, `date_to`, `outcome`, `event_id`, `category_id`
+
+**Risposta:** file `application/pdf`.
 
 ---
 
