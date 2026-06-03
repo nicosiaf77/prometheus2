@@ -58,7 +58,19 @@ async function request(method, path, options = {}) {
     init.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_BASE}${path}`, init);
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE}${path}`, init);
+  } catch (error) {
+    throw {
+      ok: false,
+      code: 0,
+      errors: {},
+      error: `Backend non raggiungibile su ${API_BASE}. Verifica che il server API sia avviato e che CORS consenta questa origine.`,
+      cause: error,
+    };
+  }
 
   if (expectBlob) {
     if (!response.ok) {
