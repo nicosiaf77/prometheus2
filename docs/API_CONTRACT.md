@@ -15,6 +15,7 @@ Fase iniziale. Le API definitive saranno definite step by step.
 - Orari: `HH:MM`.
 - Importi: numeri decimali con due cifre.
 - Errori: risposta JSON con `message` e, se presenti, `errors`.
+- Login: dopo 5 tentativi falliti negli ultimi 15 minuti per stesso identificativo/IP, il backend rallenta e nega temporaneamente nuovi tentativi.
 
 ## Rotte previste
 

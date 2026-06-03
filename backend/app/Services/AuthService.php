@@ -35,6 +35,14 @@ final class AuthService
 
     public function login(string $identifier, string $password): bool
     {
+        if ($this->tooManyFailedAttempts($identifier)) {
+            $this->recordLoginAttempt($identifier, false, null);
+            (new AuditService())->record(AuditActions::LOGIN_THROTTLED, 'users', null, 'Troppi tentativi login per ' . $identifier);
+            usleep(800000);
+
+            return false;
+        }
+
         $statement = Database::connection()->prepare(
             'SELECT * FROM users WHERE (username = :username_identifier OR email = :email_identifier) AND active = 1 LIMIT 1'
         );
@@ -63,6 +71,25 @@ final class AuthService
         (new AuditService())->record(AuditActions::LOGIN_SUCCESS, 'users', (int) $user['id'], 'Login riuscito');
 
         return true;
+    }
+
+    private function tooManyFailedAttempts(string $identifier): bool
+    {
+        $request = new Request();
+        $statement = Database::connection()->prepare(
+            'SELECT COUNT(*)
+             FROM login_logs
+             WHERE success = 0
+               AND username_attempted = :identifier
+               AND ip_address = :ip_address
+               AND created_at >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)'
+        );
+        $statement->execute([
+            'identifier' => $identifier,
+            'ip_address' => $request->ip(),
+        ]);
+
+        return (int) $statement->fetchColumn() >= 5;
     }
 
     public function logout(): void
