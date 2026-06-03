@@ -56,3 +56,4 @@ La guida di installazione e collaborazione e' in `docs/GUIDA_PROGRAMMATORI.md`.
 - `nicosiagiuseppe85` lavora sul frontend.
 - Le regole per evitare collisioni sono in `docs/COLLABORAZIONE_BACKEND_FRONTEND.md`.
 - Il contratto tra backend e frontend e' in `docs/API_CONTRACT.md`.
+- Lo stato delle API pronte per il frontend e' in `docs/FRONTEND_BACKEND_READINESS.md`.

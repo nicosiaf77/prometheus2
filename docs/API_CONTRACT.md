@@ -4,6 +4,8 @@ Questo file definisce l'accordo operativo tra backend e frontend.
 
 Prima di implementare una nuova schermata o una nuova funzione, backend e frontend devono concordare qui rotte, payload, risposte ed errori.
 
+Lo stato operativo di cosa e gia pronto per il frontend e cosa resta da sviluppare e riepilogato in `docs/FRONTEND_BACKEND_READINESS.md`.
+
 ## Stato
 
 Backend riallineato come API pura. Il backend non espone pagine operative HTML; eventuali HTML/PHP di validazione stanno solo in `backend/tests`.

@@ -128,6 +128,8 @@ Per ogni funzione nuova definire prima:
 
 Il contratto API deve stare in `docs/API_CONTRACT.md`.
 
+La readiness delle API per il frontend deve stare in `docs/FRONTEND_BACKEND_READINESS.md`.
+
 Esempio:
 
 ```text
