@@ -18,4 +18,5 @@ final class AuditActions
     public const REPORT_EXPORTED = 'REPORT_EXPORTED';
     public const BACKUP_CREATED = 'BACKUP_CREATED';
     public const INTEGRITY_CHECK = 'INTEGRITY_CHECK';
+    public const USER_CREATED = 'USER_CREATED';
 }

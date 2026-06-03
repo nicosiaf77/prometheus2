@@ -88,6 +88,10 @@ POST /integrity-check
 
 `POST /integrity-check` verifica catena versioni/hash dei controlli e registra audit log. Permessi: amministratore, responsabile ufficio.
 
+`GET /users` e `POST /users` gestiscono utenti applicativi. Permessi: amministratore.
+
+`GET /audit-logs` mostra le ultime operazioni registrate. Permessi: amministratore, responsabile ufficio.
+
 ## Regola di modifica
 
 Ogni variazione a questo file deve essere approvata da entrambi i programmatori, perche impatta sia backend sia frontend.

@@ -35,6 +35,7 @@ $router->get('/statistics', [StatisticsController::class, 'index']);
 $router->get('/reports', [ReportController::class, 'index']);
 $router->get('/reports/controls.csv', [ReportController::class, 'controlsCsv']);
 $router->get('/users', [UserController::class, 'index']);
+$router->post('/users', [UserController::class, 'store']);
 $router->get('/audit-logs', [AuditLogController::class, 'index']);
 $router->get('/backup', [BackupController::class, 'index']);
 $router->post('/backup', [BackupController::class, 'store']);
