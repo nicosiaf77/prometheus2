@@ -8,6 +8,8 @@ final class Application
 {
     public function __construct(private readonly string $basePath)
     {
+        Env::load($this->basePath . '/.env');
+        Session::start();
     }
 
     public function run(Router $router): void

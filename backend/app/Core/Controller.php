@@ -4,8 +4,29 @@ declare(strict_types=1);
 
 namespace Prometheus\Core;
 
+use Prometheus\Services\AuthService;
+
 abstract class Controller
 {
+    protected function auth(): AuthService
+    {
+        return new AuthService();
+    }
+
+    protected function redirect(string $path): Response
+    {
+        return Response::redirect($path);
+    }
+
+    protected function requireAuth(): ?Response
+    {
+        if ($this->auth()->check()) {
+            return null;
+        }
+
+        return Response::redirect('/login');
+    }
+
     protected function view(string $title, string $content): Response
     {
         $body = <<<HTML

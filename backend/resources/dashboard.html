@@ -6,11 +6,11 @@
     <span class="status-pill warning">Backup</span>
   </nav>
   <div class="user-menu">
-    <span>nicosiaf77</span>
-    <select class="form-select form-select-sm" aria-label="Menu utente">
-      <option>Profilo</option>
-      <option>Logout</option>
-    </select>
+    <span>{{USER_NAME}}</span>
+    <form method="post" action="/logout">
+      <input type="hidden" name="_csrf_token" value="{{CSRF_TOKEN}}">
+      <button class="btn btn-sm btn-outline-secondary" type="submit">Logout</button>
+    </form>
   </div>
 </header>
 <main class="workspace">

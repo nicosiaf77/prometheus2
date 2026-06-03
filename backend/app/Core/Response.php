@@ -12,4 +12,9 @@ final class Response
         public readonly array $headers = ['Content-Type' => 'text/html; charset=UTF-8'],
     ) {
     }
+
+    public static function redirect(string $path, int $status = 302): self
+    {
+        return new self('', $status, ['Location' => $path]);
+    }
 }

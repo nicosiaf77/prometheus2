@@ -38,6 +38,13 @@ cp .env.example .env
 php -S localhost:8080 -t public public/router.php
 ```
 
+## Creazione amministratore locale
+
+```bash
+cd backend
+php scripts/create_admin.php --name=Nome --surname=Cognome --email=admin@example.test --username=admin --password='PasswordSicura'
+```
+
 ## Regole di collaborazione
 
 - Lavorare sempre su branch dedicato.
