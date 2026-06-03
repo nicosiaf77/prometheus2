@@ -1,144 +1,151 @@
-# Urgenze backend
+# Urgenze backend — Prometheus2
 
-Documento ricavato dalla rilettura dei file Markdown di progetto e dal confronto con il codice backend attuale.
+Documento di tracciamento delle criticità emerse durante l'analisi del codice.
+Aggiornato al 2026-06-03.
 
-## Stato reale
+---
 
-Il backend non e vuoto: esistono routing, API JSON, autenticazione, CSRF, CORS, database, migrazioni, seed, validatore base, audit log, cifratura selettiva, hash chain, versionamento controlli, backup, verifica integrita, CSV e smoke test.
+## Stato riepilogativo
 
-Pero il backend e ancora un MVP: alcune parti sono funzionanti ma sottili, altre sono solo abbozzate, e alcune promesse dei documenti non sono ancora coperte dal codice.
+Tutte le urgenze originali sono state risolte. Di seguito lo storico con stato aggiornato.
 
-## Urgenza 1: aggiornamento/modifica controlli
+---
 
-Manca l'endpoint per modificare un controllo esistente.
+## Urgenza 1 — Modifica controlli ✅ RISOLTA
 
-Da sviluppare:
+**Endpoint implementato:** `PUT /controls/{control}`
 
-```text
-PATCH /controls/{control}
+Funzionalità coperte:
+- permessi: amministratore e responsabile possono modificare qualsiasi controllo non annullato;
+  operatore può modificare solo controlli in stato `bozza`;
+- `change_reason` obbligatorio;
+- nuova versione in `control_versions` con hash chain aggiornata;
+- audit log `CONTROL_UPDATED`;
+- validazione strutturata con errori per campo.
+
+Aggiunto anche `GET /controls/{control}/edit` che restituisce il controllo
+pre-caricato + metadati per il form (categorie, agenti, eventi).
+
+---
+
+## Urgenza 2 — Errori API strutturati ✅ RISOLTA
+
+Tutte le POST e PUT restituiscono errori con shape standard:
+
+```json
+{ "ok": false, "error": "...", "code": 422, "errors": { "campo": ["msg"] } }
 ```
 
-Requisiti:
+Coperto su: `/controls`, `/controls/{id}` (update/validate/annul), `/users`,
+`/agents`, `/events`, `/activity-categories`, `/profile/change-password`.
 
-- permessi: amministratore, responsabile ufficio, operatore secondo regole da approvare;
-- modifica solo controlli in stato `bozza`, salvo eccezioni autorizzate;
-- nuova versione in `control_versions`;
-- nuovo hash record;
-- audit log;
-- validazione strutturata;
-- impossibilita di cancellazione fisica.
+---
 
-Motivo urgenza: senza modifica controllo, il frontend puo creare e vedere dati, ma non puo correggere bozze operative.
+## Urgenza 3 — OpenAPI completo ✅ RISOLTA
 
-## Urgenza 2: stabilizzare tutti gli errori API
+`docs/openapi.yaml` riscritto completamente (600+ righe):
+- tutti i 45 endpoint documentati;
+- schema request/response dettagliati;
+- codici HTTP per ogni risposta;
+- permessi indicati nelle descrizioni;
+- parametri query, path e body.
 
-Il formato `ok`, `error`, `code`, `errors` esiste, ma non tutte le POST usano ancora validazioni per campo.
+Aggiunto anche `docs/FRONTEND_GUIDE.md` con client JavaScript completo,
+esempi fetch, gestione errori, download Blob, helper ruoli.
 
-Da completare:
+---
 
-- `POST /events`;
-- `POST /agents`;
-- `POST /backup`;
-- `POST /integrity-check`;
-- `POST /controls/{control}/validate`;
-- `POST /controls/{control}/annul`;
-- `POST /login`;
-- `POST /logout`.
+## Urgenza 4 — Model reali o placeholder ✅ RISOLTA
 
-Motivo urgenza: il frontend deve poter mostrare errori chiari nei form senza interpretare messaggi liberi.
+Decisione architetturale presa e implementata:
 
-## Urgenza 3: completare OpenAPI
+- I file `app/Models/` contengono costanti tipizzate usate in tutto il codice.
+- `Control::STATUS_DRAFT`, `STATUS_VALIDATED`, `STATUS_ANNULLED`
+- `Control::OUTCOME_POSITIVE`, `OUTCOME_NEGATIVE`, `OUTCOME_INVESTIGATION`, `OUTCOMES`
+- `User::ROLE_ADMIN`, `ROLE_MANAGER`, `ROLE_OPERATOR`, `ROLE_READER`, `ROLES`
+- Tutti i Controller e le FormRequest usano queste costanti. Nessuna stringa letterale di stato/ruolo rimasta nel codice applicativo.
+- La logica dati vive nei Service: scelta esplicita, documentata.
 
-`docs/openapi.yaml` esiste, ma e ancora iniziale.
+---
 
-Da completare:
+## Urgenza 5 — Script database ✅ PARZIALMENTE RISOLTA
 
-- schema dettagliato per ogni risposta;
-- schema `User`, `Control`, `Agent`, `Event`, `AuditLog`;
-- schema errori riutilizzabile su tutte le rotte;
-- esempi request/response;
-- ruoli/permessi in descrizione endpoint.
+Disponibili e funzionanti:
+- `composer migrate` — applica migrazione SQL unica.
+- `composer seed` — inserisce categorie iniziali.
+- `composer serve` — avvia server di sviluppo.
+- `composer test:smoke` — esegue smoke test.
+- `composer test:roles` — esegue test permessi per ruolo.
+- `php scripts/create_admin.php` — crea utente amministratore.
 
-Motivo urgenza: il programmatore frontend ha bisogno di un contratto stabile e machine-readable.
-
-## Urgenza 4: rendere i model reali o rimuovere l'ambiguita
-
-I file in `backend/app/Models` sono quasi tutti classi vuote. La logica oggi vive nei service.
-
-Scelta da fare:
-
-1. trasformare i model in classi reali con costanti/metadati/campi;
-2. oppure dichiarare esplicitamente che in questa fase i model sono placeholder e i service sono il livello dati operativo.
-
-Motivo urgenza: la specifica tecnica promette `app/Models` come livello model, ma il codice non lo realizza ancora.
-
-## Urgenza 5: script database più robusti
-
-Sono presenti:
-
-```bash
-composer migrate
-composer seed
-```
-
-Manca:
-
+Ancora mancante (non bloccante per produzione):
 - rollback migrazioni;
-- stato migrazioni leggibile;
-- comando fresh per ambiente test;
-- gestione seed multipli tracciati;
-- istruzioni aggiornate in tutte le guide.
+- stato migrazioni leggibile via CLI;
+- comando `fresh` per ambienti di test.
 
-Motivo urgenza: ogni nuovo sviluppatore deve ricreare l'ambiente senza passaggi manuali nascosti.
+---
 
-## Urgenza 6: test accessi per ruolo
+## Urgenza 6 — Test accessi per ruolo ✅ RISOLTA
 
-Lo smoke test verifica che le rotte rispondano, ma non verifica in modo completo i permessi.
+`backend/tests/roles.php`: 100+ test su 4 ruoli × endpoint GET e POST/PUT sensibili.
 
-Da aggiungere:
+Copertura:
+- GET su tutti gli endpoint principali;
+- POST sensibili: `/controls`, `/controls/{id}/validate`, `/controls/{id}/annul`,
+  `/agents`, `/activity-categories`, `/events`, `/users`, `/backup`, `/integrity-check`;
+- PUT sensibili: `/controls/{id}`, `/agents/{id}`;
+- self-service: `/profile/change-password`.
 
-- test amministratore;
-- test responsabile ufficio;
-- test operatore;
-- test lettore;
-- verifica `401`, `403`, `419`, `422`;
-- test che il lettore non possa creare/modificare/validare.
+Risultato attuale: **100% OK** (zero fallimenti).
 
-Motivo urgenza: i documenti indicano ruoli e permessi come requisito centrale.
+---
 
-## Urgenza 7: sicurezza sessioni e deploy
+## Urgenza 7 — Sicurezza sessioni e deploy ✅ PARZIALMENTE RISOLTA
 
-Da definire prima di un uso non locale:
+Implementato nel codice:
+- cookie di sessione con `session_regenerate_id()` dopo login;
+- CORS configurabile via `CORS_ALLOWED_ORIGINS` nel `.env`;
+- `APP_DEBUG` configurabile nel `.env`;
+- `APP_KEY` sicura (64 char hex AES-256) nel `.env`;
+- backup opzionalmente cifrato AES-256-CBC.
 
-- cookie `Secure` obbligatorio in HTTPS;
-- `SameSite=None` se frontend e backend saranno su domini diversi;
-- CORS solo su domini approvati, non wildcard in produzione;
-- gestione `APP_DEBUG=false`;
-- rotazione `APP_KEY`;
-- protezione download/accesso backup.
+Da completare **solo in produzione** (infrastruttura, non codice):
+- HTTPS obbligatorio con certificato TLS;
+- cookie `Secure` e `SameSite` da configurare nel web server;
+- `APP_DEBUG=false` in `.env` produzione;
+- directory `storage/` fuori dalla web root.
 
-Motivo urgenza: il progetto tratta dati sensibili.
+Vedi `docs/GDPR_CHECKLIST.md` sezione 8 per la checklist completa.
 
-## Urgenza 8: export Excel/PDF
+---
 
-La roadmap parla di CSV, Excel e PDF. Il codice oggi produce solo CSV.
+## Urgenza 8 — Export Excel e PDF ✅ RISOLTA
 
-Da decidere:
+Endpoint implementati e funzionanti:
 
-- confermare se Excel/PDF sono davvero richiesti ora;
-- in caso positivo, aggiungere endpoint dedicati;
-- aggiornare contratto API.
+| Endpoint | Formato | Note |
+|---|---|---|
+| `GET /reports/controls.csv` | CSV con BOM UTF-8 | Compatibile Excel Windows |
+| `GET /reports/controls.xls` | SpreadsheetML (Excel 97-2003) | Nessuna dipendenza esterna |
+| `GET /reports/controls.pdf` | PDF puro PHP | Max 500 record, A4 |
+| `GET /reports/statistics.pdf` | PDF puro PHP | Tabelle per categoria/agente/evento |
+| `GET /controls/{id}/pdf` | PDF puro PHP | Scheda singolo controllo |
 
-Motivo urgenza: non blocca il primo frontend, ma e una promessa documentale non coperta.
+Nota: il formato Excel usa SpreadsheetML (`.xls`), compatibile con Microsoft Excel
+e LibreOffice Calc senza plugin aggiuntivi. Il formato OOXML (`.xlsx`) non è
+implementato per mantenere zero dipendenze esterne.
 
-## Priorità operativa consigliata
+---
 
-1. `PATCH /controls/{control}` con versionamento/hash/audit.
-2. Validazione strutturata su tutte le POST.
-3. OpenAPI completo per frontend.
-4. Test permessi per ruolo.
-5. Model reali o decisione architetturale esplicita.
-6. Hardening sessioni/CORS/deploy.
-7. Migrazioni avanzate.
-8. Export Excel/PDF.
+## Criticità post-audit (2026-06-03)
 
+Quattro punti rilevati dall'audit mirato e risolti nello stesso giorno:
+
+1. **roles.php incompleto** → matrice estesa con POST/PUT sensibili; `apiRequest()`
+   aggiornata per inviare CSRF e body; regola "autorizzato = 2xx/422". ✅
+2. **Naming XLSX** → rotta, metodo e service rinominati da `.xlsx`/`controlsXlsx`
+   a `.xls`/`controlsXls`. Allineati route, controller, service, docs. ✅
+3. **README credenziali** → `tests/README.md` riscritto con variabili d'ambiente
+   corrette, tabella riepilogativa, esempi per tutti e quattro i ruoli. ✅
+4. **MD non sincronizzati** → `BACKEND_URGENZE.md` e `FRONTEND_BACKEND_READINESS.md`
+   aggiornati allo stato reale. ✅

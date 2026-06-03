@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Prometheus\Core;
 
+use Prometheus\Middleware\RoleMiddleware;
 use Prometheus\Services\AuthService;
 
 abstract class Controller
@@ -62,7 +63,10 @@ abstract class Controller
             return $response;
         }
 
-        if ($this->auth()->hasRole($roles)) {
+        $user = $this->auth()->user();
+        $role = is_array($user) ? (string) ($user['role'] ?? '') : '';
+
+        if ((new RoleMiddleware())->allows($role, $roles)) {
             return null;
         }
 

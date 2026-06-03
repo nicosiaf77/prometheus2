@@ -1,25 +1,78 @@
 openapi: 3.0.3
 info:
   title: Prometheus2 Backend API
-  version: 0.2.0
-  description: API backend pura JSON/CSV per Prometheus2.
+  version: 1.0.0
+  description: |
+    API backend pura JSON/CSV per il Registro elettronico dei controlli amministrativi
+    della Squadra Amministrativa — Questura di Catania.
+
+    Il backend non espone pagine HTML. Tutte le risposte sono JSON tranne
+    i tre endpoint di export (CSV, Excel, PDF) che restituiscono file binari.
+
+    Autenticazione: cookie di sessione.
+    CSRF: ogni POST e PUT richiede il campo `_csrf_token` ottenuto da GET /csrf-token.
+
 servers:
   - url: http://localhost:8080
+    description: Sviluppo locale
+
+tags:
+  - name: auth
+    description: Autenticazione e sessione
+  - name: dashboard
+    description: Riepilogo operativo
+  - name: controls
+    description: Controlli amministrativi
+  - name: events
+    description: Eventi e servizi speciali
+  - name: agents
+    description: Agenti operanti
+  - name: categories
+    description: Categorie attività
+  - name: statistics
+    description: Statistiche aggregate
+  - name: reports
+    description: Export e report
+  - name: users
+    description: Gestione utenti (solo amministratore)
+  - name: audit
+    description: Audit log
+  - name: backup
+    description: Backup database
+  - name: integrity
+    description: Verifica integrità hash chain
+
 paths:
+
+  # ── Autenticazione ────────────────────────────────────────────────────────
+
   /csrf-token:
     get:
+      tags: [auth]
       summary: Recupera token CSRF
+      description: Da chiamare prima di ogni POST o PUT. Il token è legato alla sessione corrente.
+      security: []
       responses:
         "200":
           description: Token generato
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfResponse"
+
   /login:
     get:
-      summary: Informazioni diagnostiche API login
+      tags: [auth]
+      summary: Informazioni diagnostiche endpoint login
+      security: []
       responses:
         "200":
-          description: Stato API login
+          description: Informazioni API e stato autenticazione
     post:
+      tags: [auth]
       summary: Login utente
+      description: Blocco dopo 5 tentativi falliti in 15 minuti per stesso IP+identificativo.
+      security: []
       requestBody:
         required: true
         content:
@@ -29,49 +82,103 @@ paths:
       responses:
         "200":
           description: Login riuscito
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
         "401":
-          description: Credenziali non valide
+          $ref: "#/components/responses/Unauthorized"
         "419":
-          description: CSRF non valido
+          $ref: "#/components/responses/CsrfInvalid"
+
+  /logout:
+    post:
+      tags: [auth]
+      summary: Logout utente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsrfOnly"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+
   /me:
     get:
+      tags: [auth]
       summary: Utente autenticato corrente
+      description: Utile al refresh pagina per recuperare ruolo e dati sessione senza chiamare dashboard.
       responses:
         "200":
           description: Utente corrente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
         "401":
-          description: Autenticazione richiesta
-  /logout:
-    post:
-      summary: Logout utente
-      responses:
-        "200":
-          description: Logout completato
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Dashboard ─────────────────────────────────────────────────────────────
+
   /dashboard:
     get:
-      summary: Riepilogo dashboard
+      tags: [dashboard]
+      summary: Riepilogo operativo anno corrente
       responses:
         "200":
-          description: Riepiloghi operativi
+          description: Utente + riepilogo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Controlli ─────────────────────────────────────────────────────────────
+
   /controls:
     get:
-      summary: Lista controlli paginata
+      tags: [controls]
+      summary: Lista controlli paginata con filtri
       parameters:
-        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
-        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
-        - { name: sort, in: query, schema: { type: string } }
-        - { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
-        - { name: registry_number, in: query, schema: { type: string } }
-        - { name: registry_year, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, default: 25, maximum: 100 } }
+        - { name: sort, in: query, schema: { type: string, enum: [registry_number, registry_year, control_date, business_name, business_location, outcome, status, total_sanction_amount, created_at], default: control_date } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+        - { name: registry_number, in: query, schema: { type: integer } }
+        - { name: registry_year, in: query, schema: { type: integer } }
         - { name: date_from, in: query, schema: { type: string, format: date } }
         - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: has_event, in: query, schema: { type: integer, enum: [0, 1] } }
+        - { name: event_name, in: query, schema: { type: string } }
+        - { name: business_name, in: query, schema: { type: string } }
+        - { name: business_location, in: query, schema: { type: string } }
+        - { name: category_id, in: query, schema: { type: integer } }
+        - { name: agent_id, in: query, schema: { type: integer } }
         - { name: outcome, in: query, schema: { type: string, enum: [positivo, negativo, in_accertamento] } }
         - { name: status, in: query, schema: { type: string, enum: [bozza, validato, annullato] } }
+        - { name: sanction_presence, in: query, schema: { type: integer, enum: [0, 1] } }
       responses:
         "200":
-          description: Lista paginata controlli
+          description: Lista paginata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControlListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
+      tags: [controls]
       summary: Crea controllo in bozza
+      description: |
+        Crea un controllo in stato `bozza`. Assegna numero registro progressivo per anno.
+        Genera hash SHA-256 e versione iniziale (v1) nella hash chain.
+        Se `has_event=true` e `event_name` non esiste già, lo crea automaticamente.
+        Permessi: amministratore, responsabile_ufficio, operatore.
       requestBody:
         required: true
         content:
@@ -81,125 +188,933 @@ paths:
       responses:
         "201":
           description: Controllo creato
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControlCreatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
         "422":
-          description: Validazione non riuscita
+          $ref: "#/components/responses/ValidationError"
+
   /controls/create:
     get:
-      summary: Metadati per creazione controllo
+      tags: [controls]
+      summary: Metadati per form nuovo controllo
+      description: |
+        Restituisce categorie attive, agenti, eventi, valori default e campi obbligatori.
+        Da chiamare prima di aprire il form di creazione.
+        Permessi: amministratore, responsabile_ufficio, operatore.
       responses:
         "200":
-          description: Categorie, agenti, eventi e default
+          description: Metadati form
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControlMetaResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /controls/{control}:
     get:
+      tags: [controls]
       summary: Dettaglio controllo
+      description: |
+        Restituisce tutti i campi del controllo con dati cifrati già decifrati.
+        Include primary_category, secondary_categories, agents, versions e available_actions.
+        I campi *_encrypted non vengono esposti.
       parameters:
-        - name: control
-          in: path
-          required: true
-          schema: { type: integer }
+        - $ref: "#/components/parameters/ControlId"
       responses:
         "200":
           description: Dettaglio controllo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControlDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
-          description: Controllo non trovato
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [controls]
+      summary: Modifica controllo esistente
+      description: |
+        Modifica un controllo. Genera sempre una nuova versione nella hash chain.
+        `change_reason` è obbligatorio.
+        Operatori: solo controlli in bozza.
+        Amministratore/responsabile: anche i validati.
+        Controlli annullati: bloccati per tutti.
+      parameters:
+        - $ref: "#/components/parameters/ControlId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ControlUpdateRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /controls/{control}/edit:
+    get:
+      tags: [controls]
+      summary: Metadati per form modifica controllo
+      description: |
+        Restituisce il controllo pre-caricato + categorie, agenti, eventi per popolare il form.
+        Blocca: annullati (422), validati per operatori (403).
+        Permessi: amministratore, responsabile_ufficio, operatore.
+      parameters:
+        - $ref: "#/components/parameters/ControlId"
+      responses:
+        "200":
+          description: Controllo + metadati form
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ControlEditResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
   /controls/{control}/validate:
     post:
-      summary: Valida controllo
+      tags: [controls]
+      summary: Valida controllo bozza
+      description: |
+        Cambia stato da `bozza` a `validato`. Genera nuova versione hash-chain.
+        Permessi: amministratore, responsabile_ufficio.
       parameters:
-        - name: control
-          in: path
-          required: true
-          schema: { type: integer }
+        - $ref: "#/components/parameters/ControlId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsrfOnly"
       responses:
         "200":
-          description: Controllo validato
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
   /controls/{control}/annul:
     post:
-      summary: Annulla logicamente controllo
+      tags: [controls]
+      summary: Annullamento logico controllo
+      description: |
+        Cambia stato in `annullato`. Il record resta visibile.
+        `annulment_reason` è obbligatorio.
+        Permessi: amministratore, responsabile_ufficio.
       parameters:
-        - name: control
-          in: path
-          required: true
-          schema: { type: integer }
+        - $ref: "#/components/parameters/ControlId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnulRequest"
       responses:
         "200":
-          description: Controllo annullato
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /controls/{control}/versions:
+    get:
+      tags: [controls]
+      summary: Cronologia versioni controllo
+      parameters:
+        - $ref: "#/components/parameters/ControlId"
+      responses:
+        "200":
+          description: Lista versioni in ordine decrescente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /controls/{control}/pdf:
+    get:
+      tags: [controls]
+      summary: PDF scheda singolo controllo
+      description: |
+        Scarica la scheda PDF del controllo con tutti i campi decifrati.
+        Permessi: amministratore, responsabile_ufficio.
+      parameters:
+        - $ref: "#/components/parameters/ControlId"
+      responses:
+        "200":
+          description: File PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Eventi ────────────────────────────────────────────────────────────────
+
   /events:
     get:
+      tags: [events]
       summary: Lista eventi
       responses:
-        "200": { description: Lista eventi }
+        "200":
+          description: Lista eventi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
+      tags: [events]
       summary: Crea evento
+      description: |
+        Nome convertito in maiuscolo. Se l'evento esiste già, non crea duplicati.
+        Permessi: amministratore, responsabile_ufficio, operatore.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventCreateRequest"
       responses:
-        "201": { description: Evento creato }
-  /agents:
+        "201":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+
+  /events/{event}:
     get:
-      summary: Lista agenti
-      responses:
-        "200": { description: Lista agenti }
-    post:
-      summary: Crea agente
-      responses:
-        "201": { description: Agente creato }
-  /activity-categories:
-    get:
-      summary: Lista categorie attività
-      responses:
-        "200": { description: Lista categorie }
-  /statistics:
-    get:
-      summary: Statistiche operative
-      responses:
-        "200": { description: Aggregati statistiche }
-  /reports:
-    get:
-      summary: Catalogo report
-      responses:
-        "200": { description: Lista export disponibili }
-  /reports/controls.csv:
-    get:
-      summary: Export CSV controlli
+      tags: [events]
+      summary: Dettaglio evento
+      parameters:
+        - $ref: "#/components/parameters/EventId"
       responses:
         "200":
-          description: CSV controlli
+          description: Dettaglio evento
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [events]
+      summary: Rinomina evento
+      description: |
+        Permessi: amministratore, responsabile_ufficio.
+      parameters:
+        - $ref: "#/components/parameters/EventId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventCreateRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Agenti ────────────────────────────────────────────────────────────────
+
+  /agents:
+    get:
+      tags: [agents]
+      summary: Lista agenti (attivi e disattivati)
+      responses:
+        "200":
+          description: Lista agenti
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [agents]
+      summary: Crea agente
+      description: Permessi: amministratore, responsabile_ufficio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentCreateRequest"
+      responses:
+        "201":
+          description: Agente creato
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentCreatedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /agents/{agent}:
+    get:
+      tags: [agents]
+      summary: Dettaglio agente
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      responses:
+        "200":
+          description: Dettaglio agente
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [agents]
+      summary: Aggiorna agente
+      description: Permessi: amministratore, responsabile_ufficio.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentCreateRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+
+  /agents/{agent}/deactivate:
+    post:
+      tags: [agents]
+      summary: Disattiva agente
+      description: |
+        L'agente non compare più nei form. I controlli già inseriti restano invariati.
+        Permessi: amministratore, responsabile_ufficio.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsrfOnly"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ── Categorie ─────────────────────────────────────────────────────────────
+
+  /activity-categories:
+    get:
+      tags: [categories]
+      summary: Lista categorie (tutte, attive e disattivate)
+      responses:
+        "200":
+          description: Lista categorie
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [categories]
+      summary: Crea categoria
+      description: Permessi: amministratore.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryCreateRequest"
+      responses:
+        "201":
+          description: Categoria creata
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /activity-categories/{category}:
+    get:
+      tags: [categories]
+      summary: Dettaglio categoria
+      parameters:
+        - $ref: "#/components/parameters/CategoryId"
+      responses:
+        "200":
+          description: Dettaglio categoria
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [categories]
+      summary: Aggiorna categoria
+      description: Permessi: amministratore.
+      parameters:
+        - $ref: "#/components/parameters/CategoryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryCreateRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /activity-categories/{category}/deactivate:
+    post:
+      tags: [categories]
+      summary: Disattiva categoria
+      description: Permessi: amministratore.
+      parameters:
+        - $ref: "#/components/parameters/CategoryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsrfOnly"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ── Statistiche ───────────────────────────────────────────────────────────
+
+  /statistics:
+    get:
+      tags: [statistics]
+      summary: Statistiche aggregate
+      parameters:
+        - { name: year, in: query, schema: { type: integer }, description: "Default: anno corrente" }
+        - { name: month, in: query, schema: { type: integer, minimum: 1, maximum: 12 } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: outcome, in: query, schema: { type: string, enum: [positivo, negativo, in_accertamento] } }
+        - { name: event_id, in: query, schema: { type: integer } }
+        - { name: category_id, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: Statistiche
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatisticsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Report ────────────────────────────────────────────────────────────────
+
+  /reports:
+    get:
+      tags: [reports]
+      summary: Catalogo export disponibili
+      description: Permessi: amministratore, responsabile_ufficio.
+      responses:
+        "200":
+          description: Lista export
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /reports/controls.csv:
+    get:
+      tags: [reports]
+      summary: Export CSV controlli
+      description: |
+        Stessi filtri di GET /controls (esclusi paginazione e ordinamento).
+        Include BOM UTF-8 per compatibilità Excel Windows.
+        Permessi: amministratore, responsabile_ufficio.
+      responses:
+        "200":
+          description: File CSV
           content:
             text/csv:
               schema: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /reports/controls.xls:
+    get:
+      tags: [reports]
+      summary: Export Excel controlli (SpreadsheetML)
+      description: Permessi: amministratore, responsabile_ufficio.
+      responses:
+        "200":
+          description: File Excel
+          content:
+            application/vnd.ms-excel:
+              schema: { type: string, format: binary }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /reports/controls.pdf:
+    get:
+      tags: [reports]
+      summary: Export PDF elenco controlli
+      description: |
+        Massimo 500 record. Permessi: amministratore, responsabile_ufficio.
+      responses:
+        "200":
+          description: File PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /reports/statistics.pdf:
+    get:
+      tags: [reports]
+      summary: Export PDF statistiche
+      description: |
+        Accetta gli stessi filtri di GET /statistics.
+        Permessi: amministratore, responsabile_ufficio.
+      responses:
+        "200":
+          description: File PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ── Profilo ───────────────────────────────────────────────────────────────
+
+  /profile/change-password:
+    post:
+      tags: [auth]
+      summary: Cambio password self-service
+      description: Richiede la verifica della password attuale. Disponibile per tutti i ruoli autenticati.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Utenti ────────────────────────────────────────────────────────────────
+
   /users:
     get:
+      tags: [users]
       summary: Lista utenti
+      description: Permessi: amministratore.
       responses:
-        "200": { description: Lista utenti }
+        "200":
+          description: Lista utenti
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
+      tags: [users]
       summary: Crea utente
+      description: Permessi: amministratore.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateRequest"
       responses:
-        "201": { description: Utente creato }
-        "422": { description: Validazione non riuscita }
+        "201":
+          description: Utente creato
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /users/{user}:
+    get:
+      tags: [users]
+      summary: Dettaglio utente
+      description: Permessi: amministratore.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Dettaglio utente
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [users]
+      summary: Aggiorna nome, email e ruolo utente
+      description: Permessi: amministratore.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /users/{user}/deactivate:
+    post:
+      tags: [users]
+      summary: Disattiva utente
+      description: |
+        Un amministratore non può disattivare il proprio account.
+        Permessi: amministratore.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsrfOnly"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /users/{user}/activate:
+    post:
+      tags: [users]
+      summary: Riattiva utente disattivato
+      description: Permessi: amministratore.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsrfOnly"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /users/{user}/change-password:
+    post:
+      tags: [users]
+      summary: Cambia password utente (admin)
+      description: Permessi: amministratore. Nessuna verifica della password attuale.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminChangePasswordRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Audit log ─────────────────────────────────────────────────────────────
+
   /audit-logs:
     get:
-      summary: Ultimi audit log
+      tags: [audit]
+      summary: Audit log paginato con filtri
+      description: Permessi: amministratore, responsabile_ufficio.
+      parameters:
+        - { name: action, in: query, schema: { type: string }, description: "Es. CONTROL_CREATED, LOGIN_SUCCESS" }
+        - { name: entity_type, in: query, schema: { type: string }, description: "Es. controls, users" }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, default: 50, maximum: 200 } }
       responses:
-        "200": { description: Lista audit log }
+        "200":
+          description: Audit log paginato
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ── Backup ────────────────────────────────────────────────────────────────
+
   /backup:
     get:
-      summary: Lista backup
+      tags: [backup]
+      summary: Lista ultimi 10 backup
+      description: Permessi: amministratore.
       responses:
-        "200": { description: Lista backup }
+        "200":
+          description: Lista backup
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
-      summary: Crea backup
+      tags: [backup]
+      summary: Crea backup database
+      description: |
+        Esegue dump SQL e lo salva in storage/backups/.
+        Con BACKUP_ENCRYPT=true nel .env il file viene cifrato AES-256-CBC.
+        Permessi: amministratore.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsrfOnly"
       responses:
-        "201": { description: Backup creato }
+        "201":
+          description: Backup creato
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  # ── Integrità ─────────────────────────────────────────────────────────────
+
   /integrity-check:
     get:
+      tags: [integrity]
       summary: Informazioni verifica integrità
+      description: Permessi: amministratore, responsabile_ufficio.
       responses:
-        "200": { description: Check disponibili }
+        "200":
+          description: Descrizione check disponibili
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
-      summary: Esegue verifica integrità
+      tags: [integrity]
+      summary: Esegue verifica integrità hash chain
+      description: |
+        Per ogni controllo verifica: presenza versioni, hash corrente vs ultima versione, catena previous_hash.
+        Permessi: amministratore, responsabile_ufficio.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsrfOnly"
       responses:
-        "200": { description: Esito verifica }
+        "200":
+          description: Esito verifica
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrityCheckResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "419":
+          $ref: "#/components/responses/CsrfInvalid"
+
+# ── Components ────────────────────────────────────────────────────────────────
+
 components:
+
+  parameters:
+    ControlId:
+      name: control
+      in: path
+      required: true
+      schema: { type: integer }
+    EventId:
+      name: event
+      in: path
+      required: true
+      schema: { type: integer }
+    AgentId:
+      name: agent
+      in: path
+      required: true
+      schema: { type: integer }
+    CategoryId:
+      name: category
+      in: path
+      required: true
+      schema: { type: integer }
+    UserId:
+      name: user
+      in: path
+      required: true
+      schema: { type: integer }
+
+  responses:
+    OkMessage:
+      description: Operazione completata
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ok: { type: boolean, example: true }
+              message: { type: string }
+    Unauthorized:
+      description: Autenticazione richiesta
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Permessi insufficienti
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    CsrfInvalid:
+      description: Token CSRF non valido o sessione scaduta
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Risorsa non trovata
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: Validazione fallita
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationErrorResponse"
+    ServerError:
+      description: Errore interno server
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
   schemas:
     ErrorResponse:
       type: object
@@ -207,18 +1122,131 @@ components:
         ok: { type: boolean, example: false }
         error: { type: string }
         code: { type: integer }
-        errors:
-          type: object
-          additionalProperties:
-            type: array
-            items: { type: string }
+
+    ValidationErrorResponse:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }
+              example:
+                control_date: ["Il campo control_date e obbligatorio."]
+                outcome: ["Il campo outcome deve essere uno tra: positivo, negativo, in_accertamento."]
+
+    CsrfResponse:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+        csrf_token: { type: string, example: "abc123..." }
+
+    CsrfOnly:
+      type: object
+      required: [_csrf_token]
+      properties:
+        _csrf_token: { type: string }
+
     LoginRequest:
       type: object
       required: [_csrf_token, identifier, password]
       properties:
         _csrf_token: { type: string }
-        identifier: { type: string }
+        identifier: { type: string, description: "Username o email" }
         password: { type: string, format: password }
+
+    LoginResponse:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+        message: { type: string }
+        user:
+          $ref: "#/components/schemas/UserInfo"
+
+    MeResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        user:
+          $ref: "#/components/schemas/UserInfo"
+
+    UserInfo:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        surname: { type: string }
+        username: { type: string }
+        email: { type: string }
+        role:
+          type: string
+          enum: [amministratore, responsabile_ufficio, operatore, lettore]
+        active: { type: integer, enum: [0, 1] }
+        last_login_at: { type: string, nullable: true }
+
+    DashboardResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        user:
+          $ref: "#/components/schemas/UserInfo"
+        summary:
+          type: object
+          properties:
+            year_controls: { type: integer }
+            month_controls: { type: integer }
+            positive_controls: { type: integer }
+            negative_controls: { type: integer }
+            investigation_controls: { type: integer }
+            draft_controls: { type: integer }
+            year_sanctions: { type: number }
+            latest_controls:
+              type: array
+              items:
+                $ref: "#/components/schemas/ControlListItem"
+
+    ControlListItem:
+      type: object
+      properties:
+        id: { type: integer }
+        registry_number: { type: integer }
+        registry_year: { type: integer }
+        control_date: { type: string, format: date }
+        control_time: { type: string, example: "10:30" }
+        has_event: { type: integer, enum: [0, 1] }
+        event_name: { type: string, example: "ETNA COMICS" }
+        business_name: { type: string }
+        business_location: { type: string }
+        outcome: { type: string, enum: [positivo, negativo, in_accertamento] }
+        status: { type: string, enum: [bozza, validato, annullato] }
+        total_sanction_amount: { type: number, nullable: true }
+        primary_category_name: { type: string, nullable: true }
+        agents_names: { type: string, nullable: true, description: "Cognome Nome separati da virgola" }
+
+    ControlListResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        filters: { type: object }
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ControlListItem"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    PaginationMeta:
+      type: object
+      properties:
+        page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+        last_page: { type: integer }
+        sort: { type: string }
+        direction: { type: string, enum: [asc, desc] }
+
     ControlCreateRequest:
       type: object
       required: [_csrf_token, control_date, control_time, has_event, business_name, business_location, primary_category_id, outcome]
@@ -226,15 +1254,276 @@ components:
         _csrf_token: { type: string }
         control_date: { type: string, format: date }
         control_time: { type: string, example: "10:30" }
-        has_event: { type: integer, enum: [0, 1] }
-        event_name: { type: string }
+        has_event: { oneOf: [{ type: boolean }, { type: integer, enum: [0, 1] }] }
+        event_name: { type: string, description: "Obbligatorio se has_event=true" }
         business_name: { type: string }
         business_location: { type: string }
+        business_owner: { type: string, description: "Cifrato AES-256-GCM" }
+        offender: { type: string, description: "Cifrato AES-256-GCM" }
         primary_category_id: { type: integer }
-        secondary_category_ids:
-          type: array
-          items: { type: integer }
-        agent_ids:
-          type: array
-          items: { type: integer }
+        secondary_category_ids: { type: array, items: { type: integer } }
+        agent_ids: { type: array, items: { type: integer } }
         outcome: { type: string, enum: [positivo, negativo, in_accertamento] }
+        violated_rules: { type: string }
+        sanctioning_rules: { type: string }
+        reduced_payment_amount: { type: string, example: "333.33" }
+        minimum_amount: { type: string }
+        maximum_amount: { type: string }
+        total_sanction_amount: { type: string }
+        alleged_crime: { type: string }
+        cnr_number: { type: string, description: "Cifrato AES-256-GCM" }
+        administrative_seizure: { oneOf: [{ type: boolean }, { type: integer, enum: [0, 1] }] }
+        administrative_seizure_description: { type: string }
+        criminal_seizure: { oneOf: [{ type: boolean }, { type: integer, enum: [0, 1] }] }
+        criminal_seizure_description: { type: string }
+        weapon_precautionary_withdrawal: { oneOf: [{ type: boolean }, { type: integer, enum: [0, 1] }] }
+        weapon_precautionary_withdrawal_description: { type: string }
+        notes: { type: string, description: "Cifrato AES-256-GCM" }
+
+    ControlUpdateRequest:
+      allOf:
+        - $ref: "#/components/schemas/ControlCreateRequest"
+        - type: object
+          required: [change_reason]
+          properties:
+            change_reason: { type: string, description: "Obbligatorio. Motivo della modifica." }
+
+    ControlCreatedResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+        control_id: { type: integer }
+
+    ControlDetailResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        control:
+          type: object
+          description: "Tutti i campi del controllo con dati decifrati. I campi *_encrypted non sono presenti."
+        available_actions:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              method: { type: string }
+              endpoint: { type: string }
+              required_fields: { type: array, items: { type: string } }
+
+    ControlMetaResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        defaults: { type: object }
+        accepted_outcomes: { type: array, items: { type: string } }
+        categories: { type: array, items: { type: object } }
+        agents: { type: array, items: { type: object } }
+        events: { type: array, items: { type: object } }
+        required_fields: { type: array, items: { type: string } }
+
+    ControlEditResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        control: { type: object }
+        metadata:
+          $ref: "#/components/schemas/ControlMetaResponse"
+
+    AnnulRequest:
+      type: object
+      required: [_csrf_token, annulment_reason]
+      properties:
+        _csrf_token: { type: string }
+        annulment_reason: { type: string, description: "Obbligatorio. Motivo dell'annullamento." }
+
+    VersionsResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        versions:
+          type: array
+          items:
+            type: object
+            properties:
+              version_number: { type: integer }
+              hash_version: { type: string }
+              previous_hash: { type: string, nullable: true }
+              change_reason: { type: string }
+              created_at: { type: string }
+              changed_by_username: { type: string }
+
+    EventListResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              created_by_username: { type: string }
+              created_at: { type: string }
+
+    EventCreateRequest:
+      type: object
+      required: [_csrf_token, name]
+      properties:
+        _csrf_token: { type: string }
+        name: { type: string, description: "Convertito automaticamente in maiuscolo" }
+
+    AgentCreateRequest:
+      type: object
+      required: [_csrf_token, name, surname]
+      properties:
+        _csrf_token: { type: string }
+        name: { type: string }
+        surname: { type: string }
+        rank: { type: string, nullable: true }
+        office: { type: string, nullable: true }
+
+    AgentCreatedResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
+        agent_id: { type: integer }
+
+    CategoryCreateRequest:
+      type: object
+      required: [_csrf_token, name]
+      properties:
+        _csrf_token: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+
+    StatisticsResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        filters: { type: object }
+        statistics:
+          type: object
+          properties:
+            summary:
+              type: object
+              properties:
+                total_controls: { type: integer }
+                positive_controls: { type: integer }
+                negative_controls: { type: integer }
+                investigation_controls: { type: integer }
+                loose_controls: { type: integer }
+                event_controls: { type: integer }
+                total_sanctions: { type: number }
+                alleged_crimes: { type: integer }
+                cnr_numbers: { type: integer }
+                administrative_seizures: { type: integer }
+                criminal_seizures: { type: integer }
+                weapon_withdrawals: { type: integer }
+            by_category:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  total: { type: integer }
+                  positive: { type: integer }
+                  negative: { type: integer }
+                  investigation: { type: integer }
+                  sanctions: { type: string }
+            by_agent:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  rank: { type: string, nullable: true }
+                  total: { type: integer }
+            by_event:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer, nullable: true }
+                  name: { type: string }
+                  total: { type: integer }
+                  sanctions: { type: string }
+
+    AuditLogListResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        filters: { type: object }
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              action: { type: string }
+              entity_type: { type: string, nullable: true }
+              entity_id: { type: integer, nullable: true }
+              ip_address: { type: string, nullable: true }
+              description: { type: string, nullable: true }
+              created_at: { type: string }
+              username: { type: string, nullable: true }
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    IntegrityCheckResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        result:
+          type: object
+          properties:
+            checked_controls: { type: integer }
+            issues:
+              type: array
+              items: { type: string }
+
+    UserCreateRequest:
+      type: object
+      required: [_csrf_token, name, surname, email, username, password, role]
+      properties:
+        _csrf_token: { type: string }
+        name: { type: string }
+        surname: { type: string }
+        email: { type: string, format: email }
+        username: { type: string }
+        password: { type: string, minLength: 8 }
+        role:
+          type: string
+          enum: [amministratore, responsabile_ufficio, operatore, lettore]
+
+    UserUpdateRequest:
+      type: object
+      required: [_csrf_token, name, surname, email, role]
+      properties:
+        _csrf_token: { type: string }
+        name: { type: string }
+        surname: { type: string }
+        email: { type: string, format: email }
+        role:
+          type: string
+          enum: [amministratore, responsabile_ufficio, operatore, lettore]
+
+    ChangePasswordRequest:
+      type: object
+      required: [_csrf_token, current_password, password]
+      properties:
+        _csrf_token: { type: string }
+        current_password: { type: string }
+        password: { type: string, minLength: 8 }
+
+    AdminChangePasswordRequest:
+      type: object
+      required: [_csrf_token, password]
+      properties:
+        _csrf_token: { type: string }
+        password: { type: string, minLength: 8 }

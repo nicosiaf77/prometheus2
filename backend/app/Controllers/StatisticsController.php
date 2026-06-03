@@ -19,11 +19,13 @@ final class StatisticsController extends Controller
 
         $request = new Request();
         $filters = [
-            'year' => $request->input('year', (string) date('Y')) ?? (string) date('Y'),
-            'month' => $request->input('month', '') ?? '',
-            'date_from' => $request->input('date_from', '') ?? '',
-            'date_to' => $request->input('date_to', '') ?? '',
-            'outcome' => $request->input('outcome', '') ?? '',
+            'year'        => $request->input('year', (string) date('Y')) ?? (string) date('Y'),
+            'month'       => $request->input('month', '') ?? '',
+            'date_from'   => $request->input('date_from', '') ?? '',
+            'date_to'     => $request->input('date_to', '') ?? '',
+            'outcome'     => $request->input('outcome', '') ?? '',
+            'event_id'    => $request->input('event_id', '') ?? '',
+            'category_id' => $request->input('category_id', '') ?? '',
         ];
 
         return $this->json([

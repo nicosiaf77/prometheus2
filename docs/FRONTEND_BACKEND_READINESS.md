@@ -1,166 +1,129 @@
-# Readiness backend per frontend
+# Readiness backend per frontend — Prometheus2
 
-Documento operativo per coordinare `nicosiaf77` backend e `nicosiagiuseppe85` frontend.
+Documento operativo per coordinare `nicosiaf77` (backend) e `nicosiagiuseppe85` (frontend).
+Aggiornato al 2026-06-03 — backend completato, tutte le API pronte.
 
-Obiettivo: capire quali API backend sono gia utilizzabili dal frontend, quali sono parziali e quali vanno sviluppate prima di costruire schermate definitive.
+---
 
 ## Stato sintetico
 
-Il backend e ora utilizzabile come API pura JSON/CSV. Non contiene GUI operativa in `backend/app`; eventuale HTML/PHP di prova e confinato in `backend/tests`.
+Il backend è un'API pura JSON/file. Non contiene GUI operativa in `backend/app`.
+HTML/PHP di test è confinato in `backend/tests`.
+
+Tutte le API sono pronte per il frontend. Vedi `docs/FRONTEND_GUIDE.md` per
+la guida di integrazione JavaScript e `docs/openapi.yaml` per la specifica completa.
+
+---
 
 ## Pronto per uso frontend
 
-| Area | Endpoint | Stato | Note frontend |
-|---|---|---:|---|
-| CSRF | `GET /csrf-token` | Pronto | Necessario prima di ogni `POST`. |
-| Login info | `GET /login` | Pronto | Endpoint diagnostico API, non pagina HTML. |
-| Utente corrente | `GET /me` | Pronto | Utile al refresh pagina per ruolo e sessione. |
-| Login | `POST /login` | Pronto | Campi: `identifier`, `password`, `_csrf_token`. Usa cookie sessione. |
-| Logout | `POST /logout` | Pronto | Richiede `_csrf_token`. |
-| Dashboard | `GET /dashboard` | Pronto | Restituisce utente connesso e riepilogo. |
-| Ricerca controlli | `GET /controls` | Pronto | Supporta filtri, paginazione e ordinamento. |
-| Metadati nuovo controllo | `GET /controls/create` | Pronto | Fornisce categorie, agenti, eventi, default e campi richiesti. |
-| Creazione controllo | `POST /controls` | Pronto | Crea bozza, numero registro, hash e versione iniziale. |
-| Dettaglio controllo | `GET /controls/{control}` | Pronto | Include dati decifrati, categorie, agenti, versioni e azioni disponibili. |
-| Validazione controllo | `POST /controls/{control}/validate` | Pronto | Ruoli: amministratore, responsabile ufficio. |
-| Annullamento controllo | `POST /controls/{control}/annul` | Pronto | Richiede `annulment_reason`. |
-| Eventi | `GET /events`, `POST /events` | Pronto | Lista e creazione semplice evento. |
-| Agenti | `GET /agents`, `POST /agents` | Pronto | Lista e creazione semplice agente. |
-| Categorie | `GET /activity-categories` | Pronto | Lista categorie attività. |
-| Statistiche | `GET /statistics` | Pronto | Aggregati JSON per dashboard/charts frontend. |
-| Report catalogo | `GET /reports` | Pronto | Descrive export disponibili. |
-| Export controlli | `GET /reports/controls.csv` | Pronto | Output CSV, non JSON. |
-| Utenti | `GET /users`, `POST /users` | Pronto | Solo amministratore. |
-| Audit log | `GET /audit-logs` | Pronto | Solo amministratore/responsabile ufficio. |
-| Backup | `GET /backup`, `POST /backup` | Pronto | Solo amministratore. |
-| Integrità | `GET /integrity-check`, `POST /integrity-check` | Pronto | Verifica hash/versioni. |
+| Area | Endpoint | Note frontend |
+|---|---|---|
+| CSRF | `GET /csrf-token` | Necessario prima di ogni POST/PUT. |
+| Auth info | `GET /login` | Endpoint diagnostico, non HTML. |
+| Utente corrente | `GET /me` | Recupera ruolo e sessione al refresh. |
+| Login | `POST /login` | Campi: `identifier`, `password`, `_csrf_token`. Cookie sessione. |
+| Logout | `POST /logout` | Richiede `_csrf_token`. |
+| Cambio password (self) | `POST /profile/change-password` | Verifica password attuale. |
+| Dashboard | `GET /dashboard` | Utente + riepilogo anno corrente. |
+| Lista controlli | `GET /controls` | Filtri, paginazione, ordinamento. Risposta include `control_time`, `has_event`, `primary_category_name`, `agents_names`. |
+| Metadati form nuovo | `GET /controls/create` | Categorie, agenti, eventi, default. |
+| Crea controllo | `POST /controls` | Bozza, numero registro, hash chain v1. |
+| Dettaglio controllo | `GET /controls/{id}` | Dati decifrati, `primary_category`, `secondary_categories`, `agents`, `versions`, `available_actions`. |
+| Form modifica | `GET /controls/{id}/edit` | Controllo + metadati per il form. |
+| Modifica controllo | `PUT /controls/{id}` | `change_reason` obbligatorio. |
+| Valida controllo | `POST /controls/{id}/validate` | Admin e responsabile. |
+| Annulla controllo | `POST /controls/{id}/annul` | `annulment_reason` obbligatorio. |
+| Versioni controllo | `GET /controls/{id}/versions` | Hash chain completa. |
+| PDF scheda | `GET /controls/{id}/pdf` | Admin e responsabile. |
+| Lista eventi | `GET /events` | — |
+| Crea evento | `POST /events` | Nome in maiuscolo, upsert automatico. |
+| Dettaglio evento | `GET /events/{id}` | — |
+| Rinomina evento | `PUT /events/{id}` | Admin e responsabile. |
+| Lista agenti | `GET /agents` | Attivi e disattivati. |
+| Crea agente | `POST /agents` | Admin e responsabile. |
+| Dettaglio agente | `GET /agents/{id}` | — |
+| Aggiorna agente | `PUT /agents/{id}` | Admin e responsabile. |
+| Disattiva agente | `POST /agents/{id}/deactivate` | — |
+| Lista categorie | `GET /activity-categories` | Tutte. `/controls/create` restituisce solo attive. |
+| Crea categoria | `POST /activity-categories` | Solo admin. |
+| Aggiorna categoria | `PUT /activity-categories/{id}` | Solo admin. |
+| Disattiva categoria | `POST /activity-categories/{id}/deactivate` | Solo admin. |
+| Statistiche | `GET /statistics` | Filtri: year, month, date_from/to, outcome, event_id, category_id. |
+| Catalogo report | `GET /reports` | Lista export disponibili. |
+| Export CSV | `GET /reports/controls.csv` | BOM UTF-8, compatibile Excel Windows. |
+| Export Excel | `GET /reports/controls.xls` | SpreadsheetML, compatibile Excel e LibreOffice. |
+| Export PDF elenco | `GET /reports/controls.pdf` | Max 500 record. |
+| Export PDF statistiche | `GET /reports/statistics.pdf` | Stessi filtri di `/statistics`. |
+| Lista utenti | `GET /users` | Solo admin. |
+| Crea utente | `POST /users` | Solo admin. |
+| Dettaglio utente | `GET /users/{id}` | Solo admin. |
+| Aggiorna utente | `PUT /users/{id}` | Solo admin. |
+| Disattiva utente | `POST /users/{id}/deactivate` | Solo admin. |
+| Riattiva utente | `POST /users/{id}/activate` | Solo admin. |
+| Cambia password (admin) | `POST /users/{id}/change-password` | Solo admin, nessuna verifica password attuale. |
+| Audit log | `GET /audit-logs` | Paginato, filtri: action, entity_type, date_from/to. |
+| Backup lista | `GET /backup` | Solo admin. |
+| Crea backup | `POST /backup` | Solo admin, SHA-256 file. |
+| Integrità info | `GET /integrity-check` | Admin e responsabile. |
+| Verifica integrità | `POST /integrity-check` | Admin e responsabile. |
 
-## Pronto ma da stabilizzare prima di UI definitiva
+---
 
-| Area | Criticità | Priorità |
-|---|---|---:|
-| Contratto risposte | Le risposte JSON esistono, OpenAPI iniziale presente, ma mancano esempi completi per ogni endpoint. | Alta |
-| Errori validazione | Introdotti `code` ed `errors` per campo su controlli/utenti; da estendere a tutte le POST. | Alta |
-| Sessione frontend | Login usa cookie sessione; CORS e cookie credentials sono configurabili da `.env`. | Alta |
-| CORS | Configurato per origini definite in `CORS_ALLOWED_ORIGINS`; da validare con la porta frontend definitiva. | Alta |
-| OpenAPI/Swagger | Specifica iniziale presente in `docs/openapi.yaml`; da completare con schema dettagliato risposte. | Media |
-| Script database | Disponibili `composer migrate` e `composer seed`; manca rollback migrazioni. | Media |
+## Requisiti di configurazione per il frontend
 
-## Da sviluppare per completare integrazione frontend
+**CORS:** comunicare la porta del dev server a `nicosiaf77` per aggiornare `.env`:
 
-### Priorità 1: contratto API stabile
-
-- Aggiungere esempi JSON completi in `docs/API_CONTRACT.md`.
-- Definire shape standard:
-  - successo lista: `ok`, `data`, `meta`;
-  - successo singolo: `ok`, `data`;
-  - errore: `ok`, `error`, `errors`, `code`.
-- Definire codici HTTP attesi: `200`, `201`, `401`, `403`, `419`, `422`, `500`.
-
-### Priorità 2: CORS e sessione per frontend
-
-Completata lato backend. Resta da confermare la porta reale del frontend e configurarla in `CORS_ALLOWED_ORIGINS`.
-
-### Priorità 3: endpoint identità utente
-
-Completata:
-
-```text
-GET /me
+```env
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+CORS_ALLOW_CREDENTIALS=true
 ```
 
-Uso frontend: recuperare utente e ruolo al refresh pagina senza chiamare dashboard.
+**Credenziali fetch:** ogni richiesta deve includere `credentials: 'include'` per
+inviare i cookie di sessione.
 
-Risposta attesa:
+**CSRF:** ogni POST e PUT deve includere `_csrf_token` ottenuto da `GET /csrf-token`.
 
-```json
-{
-  "ok": true,
-  "user": {
-    "id": 1,
-    "username": "nicosiaf77",
-    "role": "amministratore"
-  }
-}
-```
+**Export file:** gli endpoint di export restituiscono file binari. Usare `Blob` e
+`URL.createObjectURL` in JavaScript. Vedere `docs/FRONTEND_GUIDE.md`.
 
-### Priorità 4: paginazione controlli
+---
 
-Completata per `GET /controls`:
+## Da sviluppare — solo in produzione (non codice)
 
-```text
-page
-per_page
-sort
-direction
-```
+| Voce | Nota |
+|---|---|
+| HTTPS con certificato TLS | Da configurare su Apache/Nginx |
+| Cookie `Secure` e `SameSite` | Da configurare nel web server |
+| `APP_DEBUG=false` | Da impostare nel `.env` produzione |
+| `storage/` fuori dalla web root | Da configurare sul server |
 
-Risposta attesa:
+---
 
-```json
-{
-  "ok": true,
-  "data": [],
-  "meta": {
-    "page": 1,
-    "per_page": 25,
-    "total": 100
-  }
-}
-```
+## Schermate realizzabili subito
 
-### Priorità 5: libreria client frontend
+Tutte le schermate previste dalla spec sono realizzabili:
 
-Creare in area frontend o shared un piccolo client JavaScript:
+1. Login
+2. Dashboard riepilogo
+3. Lista controlli con filtri e paginazione
+4. Dettaglio controllo con versioni
+5. Nuovo controllo
+6. Modifica controllo
+7. Validazione e annullamento per ruoli autorizzati
+8. Tabelle eventi, agenti, categorie
+9. Statistiche con grafici
+10. Export CSV, Excel, PDF
+11. Audit log con filtri
+12. Gestione utenti (solo admin)
+13. Backup (solo admin)
+14. Profilo con cambio password
 
-```text
-frontend/src/api/prometheusApi.js
-```
+---
 
-Funzioni minime:
+## Riferimenti
 
-- `getCsrfToken()`;
-- `login(identifier, password)`;
-- `logout()`;
-- `me()`;
-- `dashboard()`;
-- `listControls(filters)`;
-- `getControl(id)`;
-- `createControl(payload)`;
-- `validateControl(id)`;
-- `annulControl(id, reason)`;
-- `listEvents()`;
-- `createEvent(name)`;
-- `listAgents()`;
-- `createAgent(payload)`;
-- `listCategories()`;
-- `statistics(filters)`.
-
-## Schermate frontend realizzabili subito
-
-1. Login.
-2. Dashboard riepilogo.
-3. Lista controlli con filtri base.
-4. Dettaglio controllo.
-5. Nuovo controllo.
-6. Validazione/annullamento controllo per ruoli autorizzati.
-7. Tabelle eventi/agenti/categorie.
-8. Statistiche.
-9. Audit log e utenti per amministratore.
-
-## Schermate da rimandare
-
-1. Gestione modifica controllo esistente: manca endpoint `PUT/PATCH /controls/{control}`.
-2. Eliminazione o disattivazione agenti/eventi/categorie: non ancora prevista.
-3. Paginazione avanzata tabelle: metadata base presente; resta da validare con esigenze reali del frontend.
-4. Export Excel/PDF: disponibile solo CSV.
-5. Reset password/autogestione profilo: non ancora sviluppato.
-
-## Checklist prima della consegna al frontend
-
-- Backend avviabile con `composer serve`.
-- Database migrato e seed categorie applicato.
-- Utente test locale creato.
-- `backend/tests/smoke.php` superato.
-- `docs/API_CONTRACT.md` aggiornato.
-- Questo documento approvato da entrambi i programmatori.
+- `docs/FRONTEND_GUIDE.md` — client JavaScript completo, esempi pratici, mapping schermata→endpoint
+- `docs/openapi.yaml` — specifica OpenAPI 3.0 completa di tutti i 45 endpoint
+- `docs/FROM_BACKEND_TO_FRONTEND_RESOURCES.md` — documentazione dettagliata ogni endpoint
+- `docs/API_CONTRACT.md` — convenzioni generali e contratto condiviso
