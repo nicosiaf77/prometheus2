@@ -27,6 +27,7 @@ Backend riallineato come API pura. Il backend non espone pagine operative HTML; 
 ```text
 GET /login
 GET /csrf-token
+GET /me
 POST /login
 POST /logout
 ```
@@ -34,6 +35,8 @@ POST /logout
 `GET /login` restituisce informazioni API, non una pagina HTML.
 
 `POST /login` accetta `identifier`, `password`, `_csrf_token` e restituisce utente connesso.
+
+`GET /me` restituisce l'utente autenticato corrente; se la sessione non e valida restituisce `401`.
 
 ### Dashboard
 
@@ -59,6 +62,35 @@ POST /controls/{control}/annul
 `GET /controls/{control}` restituisce dettaglio controllo, dati cifrati decifrati, categorie, agenti, hash, versioni e azioni disponibili. Permessi: utenti autenticati.
 
 `GET /controls` accetta filtri query: `registry_number`, `registry_year`, `date_from`, `date_to`, `has_event`, `event_name`, `business_name`, `business_location`, `category_id`, `agent_id`, `outcome`, `status`, `sanction_presence`.
+
+Parametri paginazione e ordinamento:
+
+```text
+page
+per_page
+sort
+direction
+```
+
+`sort` supporta: `registry_number`, `registry_year`, `control_date`, `business_name`, `business_location`, `outcome`, `status`, `total_sanction_amount`, `created_at`.
+
+Risposta lista:
+
+```json
+{
+  "ok": true,
+  "filters": {},
+  "data": [],
+  "meta": {
+    "page": 1,
+    "per_page": 25,
+    "total": 0,
+    "last_page": 1,
+    "sort": "control_date",
+    "direction": "desc"
+  }
+}
+```
 
 `POST /controls/{control}/validate` valida un controllo in bozza e genera nuova versione hash-chain. Permessi: amministratore, responsabile ufficio.
 

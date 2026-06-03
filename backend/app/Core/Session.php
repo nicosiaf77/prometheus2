@@ -18,7 +18,7 @@ final class Session
             'path' => '/',
             'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
             'httponly' => true,
-            'samesite' => 'Lax',
+            'samesite' => Env::get('SESSION_SAMESITE', 'Lax') ?? 'Lax',
         ]);
         session_start();
     }

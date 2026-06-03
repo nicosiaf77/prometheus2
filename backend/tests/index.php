@@ -24,8 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'password' => $_POST['password'] ?? '',
             ]),
             'logout' => apiRequest('POST', '/logout', ['_csrf_token' => csrfToken()]),
+            'me' => apiRequest('GET', '/me'),
             'dashboard' => apiRequest('GET', '/dashboard'),
-            'controls' => apiRequest('GET', '/controls'),
+            'controls' => apiRequest('GET', '/controls?page=1&per_page=10&sort=control_date&direction=desc'),
             'control_meta' => apiRequest('GET', '/controls/create'),
             'control_detail' => apiRequest('GET', '/controls/' . urlencode((string) ($_POST['control_id'] ?? '1'))),
             'categories' => apiRequest('GET', '/activity-categories'),
@@ -202,6 +203,7 @@ if ($result !== null) {
                 <input type="hidden" name="api_base" value="<?= e($apiBase) ?>">
                 <div class="grid">
                     <button name="action" value="dashboard">Dashboard</button>
+                    <button name="action" value="me">Utente /me</button>
                     <button name="action" value="controls">Controlli</button>
                     <button name="action" value="control_meta">Meta controllo</button>
                     <button name="action" value="categories">Categorie</button>

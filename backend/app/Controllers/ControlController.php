@@ -26,11 +26,17 @@ final class ControlController extends Controller
 
         $request = new Request();
         $filters = $this->searchFilters($request);
+        $page = $this->positiveInteger($request->input('page', '1') ?? '1', 1);
+        $perPage = $this->positiveInteger($request->input('per_page', '25') ?? '25', 25);
+        $sort = $request->input('sort', 'control_date') ?? 'control_date';
+        $direction = $request->input('direction', 'desc') ?? 'desc';
+        $result = (new ControlService())->paginate($filters, $page, $perPage, $sort, $direction);
 
         return $this->json([
             'ok' => true,
             'filters' => $filters,
-            'controls' => (new ControlService())->search($filters),
+            'data' => $result['data'],
+            'meta' => $result['meta'],
         ]);
     }
 
@@ -268,6 +274,11 @@ final class ControlController extends Controller
             'status' => $request->input('status', '') ?? '',
             'sanction_presence' => $request->input('sanction_presence', '') ?? '',
         ];
+    }
+
+    private function positiveInteger(string $value, int $default): int
+    {
+        return ctype_digit($value) && (int) $value > 0 ? (int) $value : $default;
     }
 
     private function availableActions(array $control): array

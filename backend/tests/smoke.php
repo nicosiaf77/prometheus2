@@ -87,8 +87,9 @@ $login = request('POST', '/login', [
 assertStatus('login', $login);
 
 $endpoints = [
+    'utente corrente' => '/me',
     'dashboard' => '/dashboard',
-    'controlli ricerca' => '/controls',
+    'controlli ricerca paginata' => '/controls?page=1&per_page=10&sort=control_date&direction=desc',
     'metadati nuovo controllo' => '/controls/create',
     'categorie' => '/activity-categories',
     'agenti' => '/agents',
@@ -114,4 +115,3 @@ $logout = request('POST', '/logout', ['_csrf_token' => $csrf['json']['csrf_token
 assertStatus('logout', $logout);
 
 echo "Smoke test completato.\n";
-

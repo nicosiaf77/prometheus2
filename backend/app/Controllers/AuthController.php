@@ -29,6 +29,18 @@ final class AuthController extends Controller
         ]);
     }
 
+    public function me(): Response
+    {
+        if ($response = $this->requireAuth()) {
+            return $response;
+        }
+
+        return $this->json([
+            'ok' => true,
+            'user' => $this->auth()->user(),
+        ]);
+    }
+
     public function login(): Response
     {
         $request = new Request();

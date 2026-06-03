@@ -14,10 +14,11 @@ Il backend e ora utilizzabile come API pura JSON/CSV. Non contiene GUI operativa
 |---|---|---:|---|
 | CSRF | `GET /csrf-token` | Pronto | Necessario prima di ogni `POST`. |
 | Login info | `GET /login` | Pronto | Endpoint diagnostico API, non pagina HTML. |
+| Utente corrente | `GET /me` | Pronto | Utile al refresh pagina per ruolo e sessione. |
 | Login | `POST /login` | Pronto | Campi: `identifier`, `password`, `_csrf_token`. Usa cookie sessione. |
 | Logout | `POST /logout` | Pronto | Richiede `_csrf_token`. |
 | Dashboard | `GET /dashboard` | Pronto | Restituisce utente connesso e riepilogo. |
-| Ricerca controlli | `GET /controls` | Pronto | Supporta filtri query gia documentati. |
+| Ricerca controlli | `GET /controls` | Pronto | Supporta filtri, paginazione e ordinamento. |
 | Metadati nuovo controllo | `GET /controls/create` | Pronto | Fornisce categorie, agenti, eventi, default e campi richiesti. |
 | Creazione controllo | `POST /controls` | Pronto | Crea bozza, numero registro, hash e versione iniziale. |
 | Dettaglio controllo | `GET /controls/{control}` | Pronto | Include dati decifrati, categorie, agenti, versioni e azioni disponibili. |
@@ -40,10 +41,8 @@ Il backend e ora utilizzabile come API pura JSON/CSV. Non contiene GUI operativa
 |---|---|---:|
 | Contratto risposte | Le risposte JSON esistono, ma mancano esempi completi request/response per ogni endpoint. | Alta |
 | Errori validazione | Gli errori sono coerenti (`ok: false`, `error`), ma non ancora strutturati per campo (`errors.field`). | Alta |
-| Sessione frontend | Login usa cookie sessione; serve decidere se frontend gira sullo stesso host/porta o su porta diversa. | Alta |
-| CORS | Non ancora configurato. Se il frontend sarà su `localhost:3000/5173`, servono header CORS e cookie credentials. | Alta |
-| Paginazione | `GET /controls` ha limite backend, ma non espone ancora `page`, `per_page`, `total`. | Alta |
-| Ordinamento | Ricerca controlli ha ordinamento fisso, non parametrico. | Media |
+| Sessione frontend | Login usa cookie sessione; CORS e cookie credentials sono configurabili da `.env`. | Alta |
+| CORS | Configurato per origini definite in `CORS_ALLOWED_ORIGINS`; da validare con la porta frontend definitiva. | Alta |
 | OpenAPI/Swagger | Manca specifica machine-readable per generare client frontend o validare payload. | Media |
 | Script database | Esistono SQL migration/seeder, ma manca comando PHP/Composer `migrate`/`seed` facile per nuovi sviluppatori. | Media |
 
@@ -60,19 +59,11 @@ Il backend e ora utilizzabile come API pura JSON/CSV. Non contiene GUI operativa
 
 ### Priorità 2: CORS e sessione per frontend
 
-- Aggiungere configurazione `.env.example`:
-  - `FRONTEND_URL`;
-  - `CORS_ALLOWED_ORIGINS`.
-- Gestire richieste `OPTIONS`.
-- Inviare header CORS compatibili con cookie sessione:
-  - `Access-Control-Allow-Origin`;
-  - `Access-Control-Allow-Credentials`;
-  - `Access-Control-Allow-Headers`;
-  - `Access-Control-Allow-Methods`.
+Completata lato backend. Resta da confermare la porta reale del frontend e configurarla in `CORS_ALLOWED_ORIGINS`.
 
 ### Priorità 3: endpoint identità utente
 
-Da aggiungere:
+Completata:
 
 ```text
 GET /me
@@ -95,7 +86,7 @@ Risposta attesa:
 
 ### Priorità 4: paginazione controlli
 
-Da aggiungere a `GET /controls`:
+Completata per `GET /controls`:
 
 ```text
 page
@@ -173,4 +164,3 @@ Funzioni minime:
 - `backend/tests/smoke.php` superato.
 - `docs/API_CONTRACT.md` aggiornato.
 - Questo documento approvato da entrambi i programmatori.
-

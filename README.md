@@ -28,6 +28,14 @@ composer serve
 
 Endpoint diagnostico: `http://localhost:8080/login`.
 
+Per frontend locale su porta diversa, configurare in `backend/.env`:
+
+```bash
+FRONTEND_URL=http://localhost:5173
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8081
+CORS_ALLOW_CREDENTIALS=true
+```
+
 ## Test backend manuale
 
 ```bash

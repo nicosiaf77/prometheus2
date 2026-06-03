@@ -36,6 +36,11 @@ final class ControlService
 
     public function search(array $filters, int $limit = 100): array
     {
+        return $this->paginate($filters, 1, $limit)['data'];
+    }
+
+    public function paginate(array $filters, int $page = 1, int $perPage = 25, string $sort = 'control_date', string $direction = 'desc'): array
+    {
         $joins = [
             'LEFT JOIN events ON events.id = controls.event_id',
         ];
@@ -108,6 +113,32 @@ final class ControlService
             $params['agent_id'] = (int) $filters['agent_id'];
         }
 
+        $sortColumns = [
+            'registry_number' => 'controls.registry_number',
+            'registry_year' => 'controls.registry_year',
+            'control_date' => 'controls.control_date',
+            'business_name' => 'controls.business_name',
+            'business_location' => 'controls.business_location',
+            'outcome' => 'controls.outcome',
+            'status' => 'controls.status',
+            'total_sanction_amount' => 'controls.total_sanction_amount',
+            'created_at' => 'controls.created_at',
+        ];
+        $sortColumn = $sortColumns[$sort] ?? $sortColumns['control_date'];
+        $sortDirection = strtolower($direction) === 'asc' ? 'ASC' : 'DESC';
+        $page = max(1, $page);
+        $perPage = min(100, max(1, $perPage));
+        $offset = ($page - 1) * $perPage;
+        $fromSql = ' FROM controls ' . implode(' ', $joins);
+        $whereSql = $where !== [] ? ' WHERE ' . implode(' AND ', $where) : '';
+        $countStatement = Database::connection()->prepare('SELECT COUNT(DISTINCT controls.id)' . $fromSql . $whereSql);
+
+        foreach ($params as $key => $value) {
+            $countStatement->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+
+        $countStatement->execute();
+        $total = (int) $countStatement->fetchColumn();
         $sql = "SELECT DISTINCT controls.id,
                     controls.registry_number,
                     controls.registry_year,
@@ -118,20 +149,31 @@ final class ControlService
                     controls.outcome,
                     controls.status,
                     controls.total_sanction_amount
-             FROM controls
-             " . implode(' ', $joins)
-            . ($where !== [] ? ' WHERE ' . implode(' AND ', $where) : '')
-            . ' ORDER BY controls.control_date DESC, controls.registry_number DESC LIMIT :limit';
+             {$fromSql}
+             {$whereSql}
+             ORDER BY {$sortColumn} {$sortDirection}, controls.registry_number {$sortDirection}
+             LIMIT :limit OFFSET :offset";
         $statement = Database::connection()->prepare($sql);
 
         foreach ($params as $key => $value) {
             $statement->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
         }
 
-        $statement->bindValue('limit', $limit, PDO::PARAM_INT);
+        $statement->bindValue('limit', $perPage, PDO::PARAM_INT);
+        $statement->bindValue('offset', $offset, PDO::PARAM_INT);
         $statement->execute();
 
-        return $statement->fetchAll();
+        return [
+            'data' => $statement->fetchAll(),
+            'meta' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'last_page' => max(1, (int) ceil($total / $perPage)),
+                'sort' => array_key_exists($sort, $sortColumns) ? $sort : 'control_date',
+                'direction' => strtolower($direction) === 'asc' ? 'asc' : 'desc',
+            ],
+        ];
     }
 
     public function find(int $id): ?array

@@ -18,6 +18,7 @@ use Prometheus\Controllers\UserController;
 $router->get('/', [DashboardController::class, 'index']);
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->get('/csrf-token', [AuthController::class, 'csrfToken']);
+$router->get('/me', [AuthController::class, 'me']);
 $router->post('/login', [AuthController::class, 'login']);
 $router->post('/logout', [AuthController::class, 'logout']);
 $router->get('/dashboard', [DashboardController::class, 'index']);
