@@ -3,6 +3,10 @@ import * as api from "./api.js";
 const state = {
   user: null,
   summary: null,
+  controls: null,
+  controlsError: "",
+  activePage: "dashboard",
+  loadingPage: false,
   view: "loading",
 };
 
@@ -22,6 +26,18 @@ const navItems = [
   { id: "users", label: "Utenti", roles: ["amministratore"] },
   { id: "audit", label: "Audit log", roles: ["amministratore", "responsabile_ufficio"] },
 ];
+
+const controlFilterDefaults = {
+  registry_year: String(new Date().getFullYear()),
+  registry_number: "",
+  business_name: "",
+  outcome: "",
+  status: "",
+  page: "1",
+  per_page: "25",
+  sort: "control_date",
+  direction: "desc",
+};
 
 document.addEventListener("DOMContentLoaded", () => {
   bindGlobalEvents();
@@ -77,6 +93,12 @@ async function handleSubmit(event) {
   if (event.target.matches("[data-login-form]")) {
     event.preventDefault();
     await submitLogin(event.target);
+    return;
+  }
+
+  if (event.target.matches("[data-controls-filter-form]")) {
+    event.preventDefault();
+    await submitControlsFilters(event.target);
   }
 }
 
@@ -90,6 +112,34 @@ async function handleClick(event) {
   if (action.dataset.action === "logout") {
     event.preventDefault();
     await submitLogout();
+    return;
+  }
+
+  if (action.dataset.action === "navigate") {
+    event.preventDefault();
+    await navigateTo(action.dataset.target);
+    return;
+  }
+
+  if (action.dataset.action === "controls-page") {
+    event.preventDefault();
+    await loadControls({ page: action.dataset.page });
+    return;
+  }
+
+  if (action.dataset.action === "controls-reset") {
+    event.preventDefault();
+    const form = document.querySelector("[data-controls-filter-form]");
+
+    if (form) {
+      form.reset();
+      form.elements.registry_year.value = controlFilterDefaults.registry_year;
+      form.elements.per_page.value = controlFilterDefaults.per_page;
+      form.elements.sort.value = controlFilterDefaults.sort;
+      form.elements.direction.value = controlFilterDefaults.direction;
+    }
+
+    await loadControls(controlFilterDefaults);
   }
 }
 
@@ -133,6 +183,81 @@ async function submitLogout() {
   state.view = "login";
   render();
   setNotice("Sessione chiusa.", "info");
+}
+
+async function navigateTo(page) {
+  if (!page || state.loadingPage) {
+    return;
+  }
+
+  state.activePage = page;
+  state.controlsError = "";
+
+  if (page === "controls") {
+    await loadControls();
+    return;
+  }
+
+  if (page === "dashboard") {
+    render();
+    await loadDashboard();
+    return;
+  }
+
+  render();
+}
+
+async function loadControls(overrides = {}) {
+  state.loadingPage = true;
+  state.activePage = "controls";
+  render();
+
+  const baseFilters = state.controls?.filters ?? controlFilterDefaults;
+  const filters = { ...baseFilters, ...overrides };
+
+  try {
+    const payload = await api.listControls(filters);
+    state.controls = {
+      filters: normalizeControlFilters({ ...filters, ...payload.filters }),
+      rows: payload.data ?? [],
+      meta: payload.meta ?? null,
+    };
+    state.controlsError = "";
+  } catch (error) {
+    if (error.code === 401) {
+      state.user = null;
+      state.summary = null;
+      state.controls = null;
+      state.view = "login";
+      render();
+      return;
+    }
+
+    if (error.code === 403) {
+      state.controlsError = "Permessi insufficienti per consultare i controlli.";
+    } else {
+      state.controlsError = error.error ?? "Errore nel caricamento controlli.";
+    }
+  } finally {
+    state.loadingPage = false;
+    render();
+  }
+}
+
+async function submitControlsFilters(form) {
+  const filters = normalizeControlFilters({
+    registry_year: form.elements.registry_year.value.trim(),
+    registry_number: form.elements.registry_number.value.trim(),
+    business_name: form.elements.business_name.value.trim(),
+    outcome: form.elements.outcome.value,
+    status: form.elements.status.value,
+    per_page: form.elements.per_page.value,
+    sort: form.elements.sort.value,
+    direction: form.elements.direction.value,
+    page: "1",
+  });
+
+  await loadControls(filters);
 }
 
 function handleApiError(error, form) {
@@ -265,7 +390,13 @@ function renderApplication() {
             ${navItems
               .filter((item) => item.roles.includes(state.user.role))
               .map((item, index) => `
-                <button class="nav-item${index === 0 ? " active" : ""}" type="button" ${index === 0 ? "" : "disabled"}>
+                <button
+                  class="nav-item${state.activePage === item.id ? " active" : ""}"
+                  type="button"
+                  data-action="navigate"
+                  data-target="${escapeHtml(item.id)}"
+                  ${isImplementedPage(item.id) ? "" : "disabled"}
+                >
                   ${escapeHtml(item.label)}
                 </button>
               `)
@@ -273,28 +404,130 @@ function renderApplication() {
           </nav>
         </aside>
         <main class="content-stack">
-          <section class="panel page-header">
-            <div>
-              <p class="eyebrow">Dashboard</p>
-              <h1>Area di lavoro</h1>
-              <p>Base pronta per sessione, ruoli, layout e schermate successive.</p>
-            </div>
-          </section>
-          <section class="metrics-grid">
-            ${renderMetric("Controlli anno", formatNumber(summary.year_controls))}
-            ${renderMetric("Controlli mese", formatNumber(summary.month_controls))}
-            ${renderMetric("Bozze", formatNumber(summary.draft_controls))}
-            ${renderMetric("Sanzioni anno", formatCurrency(summary.year_sanctions))}
-          </section>
-          <section class="panel table-panel">
-            <div class="section-head">
-              <h2>Ultimi controlli</h2>
-              <span class="subtle">Prossimo step: lista completa con filtri reali.</span>
-            </div>
-            ${renderLatestControls(summary.latest_controls ?? [])}
-          </section>
+          ${renderActivePage(summary)}
         </main>
       </div>
+    </section>
+  `;
+}
+
+function renderActivePage(summary) {
+  if (state.activePage === "controls") {
+    return renderControlsPage();
+  }
+
+  return `
+    <section class="panel page-header">
+      <div>
+        <p class="eyebrow">Dashboard</p>
+        <h1>Area di lavoro</h1>
+        <p>Base pronta per sessione, ruoli, layout e schermate successive.</p>
+      </div>
+    </section>
+    <section class="metrics-grid">
+      ${renderMetric("Controlli anno", formatNumber(summary.year_controls))}
+      ${renderMetric("Controlli mese", formatNumber(summary.month_controls))}
+      ${renderMetric("Bozze", formatNumber(summary.draft_controls))}
+      ${renderMetric("Sanzioni anno", formatCurrency(summary.year_sanctions))}
+    </section>
+    <section class="panel table-panel">
+      <div class="section-head">
+        <h2>Ultimi controlli</h2>
+        <span class="subtle">Lista completa disponibile nella sezione Controlli.</span>
+      </div>
+      ${renderLatestControls(summary.latest_controls ?? [])}
+    </section>
+  `;
+}
+
+function renderControlsPage() {
+  const filters = state.controls?.filters ?? controlFilterDefaults;
+  const rows = state.controls?.rows ?? [];
+  const meta = state.controls?.meta;
+
+  return `
+    <section class="panel page-header">
+      <div>
+        <p class="eyebrow">Controlli</p>
+        <h1>Lista controlli</h1>
+        <p>Ricerca essenziale con i filtri principali effettivamente supportati dal backend.</p>
+      </div>
+    </section>
+    <section class="panel table-panel">
+      <form class="filters-grid" data-controls-filter-form>
+        <label>
+          <span>Anno</span>
+          <input class="form-control form-control-sm" name="registry_year" value="${escapeHtml(filters.registry_year ?? "")}" inputmode="numeric">
+        </label>
+        <label>
+          <span>Registro</span>
+          <input class="form-control form-control-sm" name="registry_number" value="${escapeHtml(filters.registry_number ?? "")}" inputmode="numeric">
+        </label>
+        <label>
+          <span>Attività</span>
+          <input class="form-control form-control-sm" name="business_name" value="${escapeHtml(filters.business_name ?? "")}">
+        </label>
+        <label>
+          <span>Esito</span>
+          <select class="form-select form-select-sm" name="outcome">
+            ${renderSelectOptions(filters.outcome, [
+              ["", "Tutti"],
+              ["positivo", "Positivo"],
+              ["negativo", "Negativo"],
+              ["in_accertamento", "In accertamento"],
+            ])}
+          </select>
+        </label>
+        <label>
+          <span>Stato</span>
+          <select class="form-select form-select-sm" name="status">
+            ${renderSelectOptions(filters.status, [
+              ["", "Tutti"],
+              ["bozza", "Bozza"],
+              ["validato", "Validato"],
+              ["annullato", "Annullato"],
+            ])}
+          </select>
+        </label>
+        <label>
+          <span>Per pagina</span>
+          <select class="form-select form-select-sm" name="per_page">
+            ${renderSelectOptions(filters.per_page, [
+              ["10", "10"],
+              ["25", "25"],
+              ["50", "50"],
+            ])}
+          </select>
+        </label>
+        <label>
+          <span>Ordina per</span>
+          <select class="form-select form-select-sm" name="sort">
+            ${renderSelectOptions(filters.sort, [
+              ["control_date", "Data controllo"],
+              ["registry_number", "Numero registro"],
+              ["business_name", "Attività"],
+              ["status", "Stato"],
+              ["outcome", "Esito"],
+            ])}
+          </select>
+        </label>
+        <label>
+          <span>Direzione</span>
+          <select class="form-select form-select-sm" name="direction">
+            ${renderSelectOptions(filters.direction, [
+              ["desc", "Discendente"],
+              ["asc", "Ascendente"],
+            ])}
+          </select>
+        </label>
+        <div class="filter-actions">
+          <button class="btn btn-sm btn-primary" type="submit">Applica</button>
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-action="controls-reset">Reset</button>
+        </div>
+      </form>
+      ${state.controlsError ? `<div class="notice error">${escapeHtml(state.controlsError)}</div>` : ""}
+      ${state.loadingPage ? `<div class="loading-block">Caricamento controlli...</div>` : renderControlsTable(rows)}
+      ${renderControlsPagination(meta)}
     </section>
   `;
 }
@@ -349,6 +582,79 @@ function renderLatestControls(rows) {
   `;
 }
 
+function renderControlsTable(rows) {
+  if (!rows.length) {
+    return `<div class="empty-state">Nessun controllo trovato con i filtri correnti.</div>`;
+  }
+
+  const body = rows
+    .map((row) => `
+      <tr>
+        <td>${escapeHtml(formatRegistry(row.registry_number, row.registry_year))}</td>
+        <td>${escapeHtml(row.control_date ?? "-")}<br><span class="subtle">${escapeHtml(row.control_time ?? "")}</span></td>
+        <td>${escapeHtml(row.business_name ?? "-")}<br><span class="subtle">${escapeHtml(row.business_location ?? "-")}</span></td>
+        <td>${escapeHtml(row.primary_category_name ?? "-")}</td>
+        <td>${escapeHtml(row.event_name ?? "-")}</td>
+        <td>${escapeHtml(row.agents_names ?? "-")}</td>
+        <td>${escapeHtml(row.outcome ?? "-")}</td>
+        <td>${escapeHtml(row.status ?? "-")}</td>
+      </tr>
+    `)
+    .join("");
+
+  return `
+    <div class="table-wrap">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Registro</th>
+            <th>Data</th>
+            <th>Attività</th>
+            <th>Categoria</th>
+            <th>Evento</th>
+            <th>Agenti</th>
+            <th>Esito</th>
+            <th>Stato</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderControlsPagination(meta) {
+  if (!meta) {
+    return "";
+  }
+
+  const page = Number(meta.page ?? 1);
+  const lastPage = Number(meta.last_page ?? 1);
+  const total = Number(meta.total ?? 0);
+  const prevDisabled = page <= 1 ? "disabled" : "";
+  const nextDisabled = page >= lastPage ? "disabled" : "";
+
+  return `
+    <div class="pagination-bar">
+      <span class="subtle">Pagina ${page} di ${lastPage} · Totale ${formatNumber(total)}</span>
+      <div class="pagination-actions">
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-action="controls-page" data-page="${page - 1}" ${prevDisabled}>Precedente</button>
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-action="controls-page" data-page="${page + 1}" ${nextDisabled}>Successiva</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSelectOptions(currentValue, options) {
+  return options
+    .map(([value, label]) => `<option value="${escapeHtml(value)}" ${String(currentValue ?? "") === value ? "selected" : ""}>${escapeHtml(label)}</option>`)
+    .join("");
+}
+
+function isImplementedPage(page) {
+  return ["dashboard", "controls"].includes(page);
+}
+
 function canExport() {
   return ["amministratore", "responsabile_ufficio"].includes(state.user?.role);
 }
@@ -400,6 +706,20 @@ function formatRegistry(number, year) {
   }
 
   return `${number}/${year}`;
+}
+
+function normalizeControlFilters(filters) {
+  return {
+    registry_year: String(filters.registry_year ?? controlFilterDefaults.registry_year),
+    registry_number: String(filters.registry_number ?? ""),
+    business_name: String(filters.business_name ?? ""),
+    outcome: String(filters.outcome ?? ""),
+    status: String(filters.status ?? ""),
+    page: String(filters.page ?? "1"),
+    per_page: String(filters.per_page ?? controlFilterDefaults.per_page),
+    sort: String(filters.sort ?? controlFilterDefaults.sort),
+    direction: String(filters.direction ?? controlFilterDefaults.direction),
+  };
 }
 
 function formatNumber(value) {
