@@ -4,7 +4,7 @@ Documento operativo a cura di `nicosiaf77` (backend).
 Aggiornato ad ogni nuova funzione esposta al frontend.
 Da leggere e tenere sincronizzato da `nicosiagiuseppe85` (frontend).
 
-**Ultimo aggiornamento:** 2026-06-03 — aggiornamenti lista controlli, statistiche complete, eventi show/update, PDF statistiche.
+**Ultimo aggiornamento:** 2026-06-03 — rimozione campi cifrati dalla risposta, agents_names in lista, GET /edit, POST /profile/change-password, BOM CSV.
 
 Ogni sezione descrive un endpoint: metodo HTTP, URL, permessi richiesti,
 parametri accettati, struttura della risposta e note di utilizzo.
@@ -211,7 +211,8 @@ Lista controlli con filtri, paginazione e ordinamento.
       "business_name": "Bar Roma", "business_location": "Via Roma 1",
       "outcome": "positivo", "status": "bozza",
       "total_sanction_amount": null,
-      "primary_category_name": "Somministrazione alimenti e bevande"
+      "primary_category_name": "Somministrazione alimenti e bevande",
+      "agents_names": "Rossi Mario, Bianchi Luigi"
     }
   ],
   "meta": { "page": 1, "per_page": 25, "total": 4, "last_page": 1, "sort": "control_date", "direction": "desc" }
@@ -349,6 +350,7 @@ Include categorie, agenti, versioni e azioni disponibili per l'utente corrente.
 ```
 
 **Note:**
+- I campi `*_encrypted` **non sono presenti** nella risposta: il backend li decifratura e li espone come `business_owner`, `offender`, `cnr_number`, `notes`.
 - `primary_category` è l'oggetto categoria principale o `null`.
 - `secondary_categories` è un array (può essere vuoto).
 - `available_actions` è vuoto per i `lettori` o se il controllo è `annullato`.
@@ -402,6 +404,31 @@ Non è possibile cancellare fisicamente un controllo.
 **Nota:** `annulment_reason` è **obbligatorio**.
 
 **Risposta:** `{ "ok": true, "message": "Controllo annullato logicamente.", "control_id": 3 }`
+
+---
+
+### `GET /controls/{id}/edit`
+Restituisce il controllo pre-caricato con tutti i campi decifrati, più i metadati necessari per costruire il form di modifica (categorie attive, agenti attivi, eventi, campi obbligatori).
+
+**Permessi:** amministratore, responsabile_ufficio, operatore
+(gli operatori sono bloccati sui controlli validati con 403; tutti i ruoli sono bloccati sui controlli annullati con 422)
+
+**Risposta:**
+```json
+{
+  "ok": true,
+  "control": { "...tutti i campi come GET /controls/{id}..." },
+  "metadata": {
+    "accepted_outcomes": ["positivo", "negativo", "in_accertamento"],
+    "categories": [ { "id": 1, "name": "Minuta vendita" } ],
+    "agents":     [ { "id": 1, "name": "Mario", "surname": "Rossi", "rank": "Ass. Capo" } ],
+    "events":     [ { "id": 1, "name": "ETNA COMICS" } ],
+    "required_fields": ["control_date", "control_time", "business_name", "business_location", "primary_category_id", "outcome", "change_reason"]
+  }
+}
+```
+
+**Nota:** `change_reason` è obbligatorio nel successivo `PUT /controls/{id}`.
 
 ---
 
@@ -651,6 +678,23 @@ Restituisce aggregati statistici per alimentare grafici e dashboard.
 
 ---
 
+### `POST /profile/change-password`
+Cambio password self-service per l'utente corrente.
+Richiede la verifica della password attuale prima di aggiornare.
+Qualsiasi ruolo autenticato può usarlo.
+
+**Permessi:** autenticato
+
+**Payload:**
+```json
+{ "_csrf_token": "...", "current_password": "vecchia_password", "password": "nuova_password_min8" }
+```
+
+**Errori:**
+- `422` — password attuale errata o nuova password < 8 caratteri
+
+---
+
 ## Report ed esportazioni
 
 ### `GET /reports`
@@ -684,6 +728,8 @@ Esporta i controlli filtrati in formato CSV UTF-8.
 **Risposta:** file `text/csv` con intestazione. Ogni download registrato in `exports` e audit log.
 
 **Colonne CSV:** Registro, Anno, Data, Ora, Evento, Attività, Luogo, Esito, Stato, Sanzione (€)
+
+**Nota:** il file include il BOM UTF-8 (`\xEF\xBB\xBF`) per la corretta visualizzazione degli accenti italiani in Microsoft Excel su Windows.
 
 ---
 
