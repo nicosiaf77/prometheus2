@@ -711,7 +711,7 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
-  /reports/controls.xlsx:
+  /reports/controls.xls:
     get:
       tags: [reports]
       summary: Export Excel controlli (SpreadsheetML)

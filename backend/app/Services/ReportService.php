@@ -60,7 +60,7 @@ final class ReportService
 
     // ── Excel SpreadsheetML ───────────────────────────────────────────
 
-    public function controlsXlsx(array $filters, int $userId): array
+    public function controlsXls(array $filters, int $userId): array
     {
         $controls = (new ControlService())->search($filters, 1000);
         $fileName = 'controlli_' . date('Ymd_His') . '.xls';
@@ -111,7 +111,7 @@ final class ReportService
 
         $xml .= '</Table></Worksheet></Workbook>';
 
-        $this->recordExport($userId, 'controls_xlsx', $filters, $fileName);
+        $this->recordExport($userId, 'controls_xls', $filters, $fileName);
         (new AuditService())->record(AuditActions::REPORT_EXPORTED, 'exports', null, 'Export Excel: ' . $fileName);
 
         return ['file_name' => $fileName, 'content' => $xml];

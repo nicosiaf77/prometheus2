@@ -708,7 +708,7 @@ Catalogo degli export disponibili.
   "ok": true,
   "exports": [
     { "name": "Controlli CSV",        "method": "GET", "endpoint": "/reports/controls.csv",   "format": "text/csv" },
-    { "name": "Controlli Excel",      "method": "GET", "endpoint": "/reports/controls.xlsx",  "format": "application/vnd.ms-excel" },
+    { "name": "Controlli Excel (XLS)",      "method": "GET", "endpoint": "/reports/controls.xls",  "format": "application/vnd.ms-excel" },
     { "name": "Controlli PDF",        "method": "GET", "endpoint": "/reports/controls.pdf",   "format": "application/pdf" },
     { "name": "Statistiche PDF",      "method": "GET", "endpoint": "/reports/statistics.pdf", "format": "application/pdf" },
     { "name": "Scheda controllo PDF", "method": "GET", "endpoint": "/controls/{id}/pdf",      "format": "application/pdf" }
@@ -733,7 +733,7 @@ Esporta i controlli filtrati in formato CSV UTF-8.
 
 ---
 
-### `GET /reports/controls.xlsx`
+### `GET /reports/controls.xls`
 Esporta i controlli filtrati in formato Excel (SpreadsheetML XML).
 Compatibile con Microsoft Excel e LibreOffice Calc senza plugin aggiuntivi.
 

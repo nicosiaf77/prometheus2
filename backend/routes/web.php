@@ -48,7 +48,7 @@ $router->post('/agents/{agent}/deactivate', [AgentController::class, 'deactivate
 $router->get('/statistics', [StatisticsController::class, 'index']);
 $router->get('/reports', [ReportController::class, 'index']);
 $router->get('/reports/controls.csv', [ReportController::class, 'controlsCsv']);
-$router->get('/reports/controls.xlsx', [ReportController::class, 'controlsXlsx']);
+$router->get('/reports/controls.xls', [ReportController::class, 'controlsXls']);
 $router->get('/reports/controls.pdf', [ReportController::class, 'controlsPdf']);
 $router->get('/reports/statistics.pdf', [ReportController::class, 'statisticsPdf']);
 $router->get('/controls/{control}/pdf', [ControlController::class, 'pdf']);

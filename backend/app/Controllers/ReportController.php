@@ -23,7 +23,7 @@ final class ReportController extends Controller
             'ok'      => true,
             'exports' => [
                 ['name' => 'Controlli CSV',       'method' => 'GET', 'endpoint' => '/reports/controls.csv',    'format' => 'text/csv'],
-                ['name' => 'Controlli Excel',      'method' => 'GET', 'endpoint' => '/reports/controls.xlsx',   'format' => 'application/vnd.ms-excel'],
+                ['name' => 'Controlli Excel (XLS)', 'method' => 'GET', 'endpoint' => '/reports/controls.xls',    'format' => 'application/vnd.ms-excel'],
                 ['name' => 'Controlli PDF',        'method' => 'GET', 'endpoint' => '/reports/controls.pdf',    'format' => 'application/pdf'],
                 ['name' => 'Statistiche PDF',      'method' => 'GET', 'endpoint' => '/reports/statistics.pdf',  'format' => 'application/pdf'],
                 ['name' => 'Scheda controllo PDF', 'method' => 'GET', 'endpoint' => '/controls/{id}/pdf',       'format' => 'application/pdf'],
@@ -41,9 +41,9 @@ final class ReportController extends Controller
         return $this->exportResponse('controlsCsv', 'text/csv; charset=UTF-8');
     }
 
-    public function controlsXlsx(): Response
+    public function controlsXls(): Response
     {
-        return $this->exportResponse('controlsXlsx', 'application/vnd.ms-excel');
+        return $this->exportResponse('controlsXls', 'application/vnd.ms-excel');
     }
 
     public function controlsPdf(): Response

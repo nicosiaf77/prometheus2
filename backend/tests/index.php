@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             'statistics'     => apiRequest('GET', '/statistics'),
             'reports'        => apiRequest('GET', '/reports'),
             'csv'            => apiRequest('GET', '/reports/controls.csv'),
-            'xlsx'           => apiRequest('GET', '/reports/controls.xlsx'),
+            'xlsx'           => apiRequest('GET', '/reports/controls.xls'),
             'controls_pdf'   => apiRequest('GET', '/reports/controls.pdf'),
             'stats_pdf'      => apiRequest('GET', '/reports/statistics.pdf'),
 

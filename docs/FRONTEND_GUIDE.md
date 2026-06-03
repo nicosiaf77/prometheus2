@@ -164,7 +164,7 @@ async function downloadControlsCsv(filters = {}) {
 
 async function downloadControlsXlsx(filters = {}) {
   const params = new URLSearchParams(filters).toString();
-  return apiFetch('GET', `/reports/controls.xlsx${params ? '?' + params : ''}`, null, true);
+  return apiFetch('GET', `/reports/controls.xls${params ? '?' + params : ''}`, null, true);
 }
 
 async function downloadControlsPdf(filters = {}) {
@@ -526,7 +526,7 @@ new Chart(ctx2, {
 |---|---|
 | Catalogo export | `GET /reports` |
 | Download CSV | `GET /reports/controls.csv` |
-| Download Excel | `GET /reports/controls.xlsx` |
+| Download Excel | `GET /reports/controls.xls` |
 | Download PDF elenco | `GET /reports/controls.pdf` |
 | Download PDF stats | `GET /reports/statistics.pdf` |
 
