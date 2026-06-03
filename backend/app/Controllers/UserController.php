@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Prometheus\Controllers;
 
+use PDO;
 use Prometheus\Core\Controller;
+use Prometheus\Core\Database;
 use Prometheus\Core\Request;
 use Prometheus\Core\Response;
 use Prometheus\Core\Session;
@@ -192,6 +194,70 @@ final class UserController extends Controller
         try {
             $service->changePassword($userId, $password);
             (new AuditService())->record(AuditActions::USER_UPDATED, 'users', $userId, 'Password cambiata per utente id ' . $userId);
+        } catch (Throwable $exception) {
+            return $this->error('Cambio password non riuscito: ' . $exception->getMessage(), 500);
+        }
+
+        return $this->json(['ok' => true, 'message' => 'Password aggiornata correttamente.']);
+    }
+
+    public function profileChangePassword(): Response
+    {
+        if ($response = $this->requireAuth()) {
+            return $response;
+        }
+
+        $request = new Request();
+
+        if (!Session::validateCsrf($request->input('_csrf_token'))) {
+            return $this->error('Sessione non valida.', 419);
+        }
+
+        $currentUser = $this->auth()->user();
+
+        if ($currentUser === null) {
+            return $this->error('Sessione non valida.', 401);
+        }
+
+        $currentPassword = $request->input('current_password', '') ?? '';
+        $newPassword      = trim($request->input('password', '') ?? '');
+
+        if ($currentPassword === '') {
+            return $this->validationError(['current_password' => ['La password attuale è obbligatoria.']]);
+        }
+
+        if (strlen($newPassword) < 8) {
+            return $this->validationError(['password' => ['La nuova password deve contenere almeno 8 caratteri.']]);
+        }
+
+        // Verifica password attuale
+        $service = new UserService();
+        $stored  = $service->find((int) $currentUser['id']);
+
+        if ($stored === null) {
+            return $this->error('Utente non trovato.', 404);
+        }
+
+        // Recupera l'hash dalla tabella (find() non lo espone per sicurezza)
+        $stmt = Database::connection()->prepare(
+            'SELECT password FROM users WHERE id = :id LIMIT 1'
+        );
+        $stmt->execute(['id' => (int) $currentUser['id']]);
+        $row  = $stmt->fetch(PDO::FETCH_ASSOC);
+        $hash = is_array($row) ? (string) ($row['password'] ?? '') : '';
+
+        if (!password_verify($currentPassword, $hash)) {
+            return $this->error('La password attuale non è corretta.', 422);
+        }
+
+        try {
+            $service->changePassword((int) $currentUser['id'], $newPassword);
+            (new AuditService())->record(
+                AuditActions::USER_UPDATED,
+                'users',
+                (int) $currentUser['id'],
+                'Cambio password self-service utente ' . ($currentUser['username'] ?? '')
+            );
         } catch (Throwable $exception) {
             return $this->error('Cambio password non riuscito: ' . $exception->getMessage(), 500);
         }

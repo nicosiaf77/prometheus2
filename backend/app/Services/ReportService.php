@@ -21,6 +21,9 @@ final class ReportService
             throw new \RuntimeException('Impossibile creare CSV temporaneo.');
         }
 
+        // BOM UTF-8 per compatibilità Excel su Windows
+        fwrite($handle, "\xEF\xBB\xBF");
+
         $this->writeCsvRow($handle, [
             'Registro', 'Anno', 'Data', 'Ora', 'Evento',
             'Attività', 'Luogo', 'Esito', 'Stato', 'Sanzione (€)',

@@ -26,6 +26,7 @@ $router->get('/controls', [ControlController::class, 'index']);
 $router->get('/controls/create', [ControlController::class, 'create']);
 $router->post('/controls', [ControlController::class, 'store']);
 $router->get('/controls/{control}', [ControlController::class, 'show']);
+$router->get('/controls/{control}/edit', [ControlController::class, 'edit']);
 $router->get('/controls/{control}/versions', [ControlController::class, 'versions']);
 $router->put('/controls/{control}', [ControlController::class, 'update']);
 $router->post('/controls/{control}/validate', [ControlController::class, 'validate']);
@@ -51,6 +52,7 @@ $router->get('/reports/controls.xlsx', [ReportController::class, 'controlsXlsx']
 $router->get('/reports/controls.pdf', [ReportController::class, 'controlsPdf']);
 $router->get('/reports/statistics.pdf', [ReportController::class, 'statisticsPdf']);
 $router->get('/controls/{control}/pdf', [ControlController::class, 'pdf']);
+$router->post('/profile/change-password', [UserController::class, 'profileChangePassword']);
 $router->get('/users', [UserController::class, 'index']);
 $router->post('/users', [UserController::class, 'store']);
 $router->get('/users/{user}', [UserController::class, 'show']);

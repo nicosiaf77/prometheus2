@@ -171,7 +171,17 @@ final class ControlService
                         WHERE control_activity_category.control_id = controls.id
                           AND control_activity_category.is_primary = 1
                         LIMIT 1
-                    ) AS primary_category_name
+                    ) AS primary_category_name,
+                    (
+                        SELECT GROUP_CONCAT(
+                            CONCAT(agents.surname, ' ', agents.name)
+                            ORDER BY agents.surname, agents.name
+                            SEPARATOR ', '
+                        )
+                        FROM agent_control
+                        INNER JOIN agents ON agents.id = agent_control.agent_id
+                        WHERE agent_control.control_id = controls.id
+                    ) AS agents_names
              {$fromSql}
              {$whereSql}
              ORDER BY {$sortColumn} {$sortDirection}, controls.registry_number {$sortDirection}
@@ -222,10 +232,18 @@ final class ControlService
             return null;
         }
 
+        // Decifratura — i campi plain sostituiscono gli encrypted che vengono rimossi
         $control['business_owner'] = $this->decryptNullable($control['business_owner_encrypted']);
-        $control['offender'] = $this->decryptNullable($control['offender_encrypted']);
-        $control['cnr_number'] = $this->decryptNullable($control['cnr_number_encrypted']);
-        $control['notes'] = $this->decryptNullable($control['notes_encrypted']);
+        $control['offender']       = $this->decryptNullable($control['offender_encrypted']);
+        $control['cnr_number']     = $this->decryptNullable($control['cnr_number_encrypted']);
+        $control['notes']          = $this->decryptNullable($control['notes_encrypted']);
+
+        unset(
+            $control['business_owner_encrypted'],
+            $control['offender_encrypted'],
+            $control['cnr_number_encrypted'],
+            $control['notes_encrypted']
+        );
 
         $allCategories = $this->categories($id);
         $control['primary_category'] = null;

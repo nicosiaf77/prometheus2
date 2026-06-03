@@ -139,6 +139,48 @@ final class ControlController extends Controller
         ], 201);
     }
 
+    public function edit(string $control): Response
+    {
+        if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio', 'operatore'])) {
+            return $response;
+        }
+
+        if (!ctype_digit($control)) {
+            return $this->error('Controllo non trovato.', 404);
+        }
+
+        $controlData = (new ControlService())->find((int) $control);
+
+        if ($controlData === null) {
+            return $this->error('Controllo non trovato.', 404);
+        }
+
+        if ($controlData['status'] === 'annullato') {
+            return $this->error('Un controllo annullato non può essere modificato.', 422);
+        }
+
+        if ($controlData['status'] === 'validato'
+            && !$this->auth()->hasRole(['amministratore', 'responsabile_ufficio'])
+        ) {
+            return $this->error('Solo amministratore o responsabile ufficio può modificare un controllo validato.', 403);
+        }
+
+        return $this->json([
+            'ok'       => true,
+            'control'  => $controlData,
+            'metadata' => [
+                'accepted_outcomes' => ['positivo', 'negativo', 'in_accertamento'],
+                'categories'        => (new ActivityCategoryService())->active(),
+                'agents'            => (new AgentService())->active(),
+                'events'            => (new EventService())->all(),
+                'required_fields'   => [
+                    'control_date', 'control_time', 'business_name',
+                    'business_location', 'primary_category_id', 'outcome', 'change_reason',
+                ],
+            ],
+        ]);
+    }
+
     public function pdf(string $control): Response
     {
         if ($response = $this->requireRoles(['amministratore', 'responsabile_ufficio'])) {
