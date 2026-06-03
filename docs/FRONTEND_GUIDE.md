@@ -162,7 +162,7 @@ async function downloadControlsCsv(filters = {}) {
   return apiFetch('GET', `/reports/controls.csv${params ? '?' + params : ''}`, null, true);
 }
 
-async function downloadControlsXlsx(filters = {}) {
+async function downloadControlsXls(filters = {}) {
   const params = new URLSearchParams(filters).toString();
   return apiFetch('GET', `/reports/controls.xls${params ? '?' + params : ''}`, null, true);
 }
@@ -237,7 +237,7 @@ export {
   login, logout, me, dashboard,
   listControls, getControlMeta, getControl, getControlEdit, getControlVersions,
   createControl, updateControl, validateControl, annulControl,
-  downloadControlPdf, downloadControlsCsv, downloadControlsXlsx,
+  downloadControlPdf, downloadControlsCsv, downloadControlsXls,
   downloadControlsPdf, downloadStatisticsPdf,
   listEvents, createEvent, listAgents, createAgent, listCategories,
   statistics, listUsers, createUser, auditLogs, profileChangePassword,
@@ -342,7 +342,7 @@ async function downloadFile(blobPromise, fileName) {
 
 // Esempi di utilizzo
 downloadFile(api.downloadControlsCsv({ registry_year: 2026 }), 'controlli_2026.csv');
-downloadFile(api.downloadControlsXlsx(), 'controlli.xls');
+downloadFile(api.downloadControlsXls(), 'controlli.xls');
 downloadFile(api.downloadStatisticsPdf({ year: 2026 }), 'statistiche_2026.pdf');
 downloadFile(api.downloadControlPdf(5), 'scheda_5.pdf');
 ```
@@ -526,7 +526,7 @@ new Chart(ctx2, {
 |---|---|
 | Catalogo export | `GET /reports` |
 | Download CSV | `GET /reports/controls.csv` |
-| Download Excel | `GET /reports/controls.xls` |
+| Download XLS | `GET /reports/controls.xls` |
 | Download PDF elenco | `GET /reports/controls.pdf` |
 | Download PDF stats | `GET /reports/statistics.pdf` |
 
