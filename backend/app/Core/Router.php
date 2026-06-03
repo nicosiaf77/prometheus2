@@ -20,6 +20,7 @@ final class Router
 
     public function dispatch(string $method, string $uri): Response
     {
+        $method = $method === 'HEAD' ? 'GET' : $method;
         $path = parse_url($uri, PHP_URL_PATH) ?: '/';
         $handler = $this->routes[$method][$path] ?? null;
 

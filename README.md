@@ -23,7 +23,7 @@ Registro elettronico dei controlli amministrativi per la Squadra Amministrativa 
 cd backend
 composer install
 cp .env.example .env
-php -S localhost:8080 -t public
+php -S localhost:8080 -t public public/router.php
 ```
 
 Aprire `http://localhost:8080`.

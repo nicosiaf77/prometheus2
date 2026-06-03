@@ -35,7 +35,7 @@ cd prometheus2
 cd backend
 composer install
 cp .env.example .env
-php -S localhost:8080 -t public
+php -S localhost:8080 -t public public/router.php
 ```
 
 ## Regole di collaborazione
