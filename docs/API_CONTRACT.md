@@ -41,6 +41,8 @@ POST /controls/{control}/annul
 
 `GET /controls/{control}` mostra dettaglio controllo, dati cifrati decifrati, categorie, agenti, hash e versioni. Permessi: utenti autenticati.
 
+`GET /controls` accetta filtri query: `registry_number`, `registry_year`, `date_from`, `date_to`, `has_event`, `event_name`, `business_name`, `business_location`, `category_id`, `agent_id`, `outcome`, `status`, `sanction_presence`.
+
 `POST /controls/{control}/validate` valida un controllo in bozza e genera nuova versione hash-chain. Permessi: amministratore, responsabile ufficio.
 
 `POST /controls/{control}/annul` annulla logicamente un controllo con motivo obbligatorio e genera nuova versione hash-chain. Permessi: amministratore, responsabile ufficio.

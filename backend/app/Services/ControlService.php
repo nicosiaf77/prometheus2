@@ -34,6 +34,106 @@ final class ControlService
         return $statement->fetchAll();
     }
 
+    public function search(array $filters, int $limit = 100): array
+    {
+        $joins = [
+            'LEFT JOIN events ON events.id = controls.event_id',
+        ];
+        $where = [];
+        $params = [];
+
+        if (($filters['registry_number'] ?? '') !== '') {
+            $where[] = 'controls.registry_number = :registry_number';
+            $params['registry_number'] = (int) $filters['registry_number'];
+        }
+
+        if (($filters['registry_year'] ?? '') !== '') {
+            $where[] = 'controls.registry_year = :registry_year';
+            $params['registry_year'] = (int) $filters['registry_year'];
+        }
+
+        if (($filters['date_from'] ?? '') !== '') {
+            $where[] = 'controls.control_date >= :date_from';
+            $params['date_from'] = $filters['date_from'];
+        }
+
+        if (($filters['date_to'] ?? '') !== '') {
+            $where[] = 'controls.control_date <= :date_to';
+            $params['date_to'] = $filters['date_to'];
+        }
+
+        if (($filters['has_event'] ?? '') !== '') {
+            $where[] = 'controls.has_event = :has_event';
+            $params['has_event'] = (int) $filters['has_event'];
+        }
+
+        if (($filters['event_name'] ?? '') !== '') {
+            $where[] = 'events.name LIKE :event_name';
+            $params['event_name'] = '%' . $filters['event_name'] . '%';
+        }
+
+        if (($filters['business_name'] ?? '') !== '') {
+            $where[] = 'controls.business_name LIKE :business_name';
+            $params['business_name'] = '%' . $filters['business_name'] . '%';
+        }
+
+        if (($filters['business_location'] ?? '') !== '') {
+            $where[] = 'controls.business_location LIKE :business_location';
+            $params['business_location'] = '%' . $filters['business_location'] . '%';
+        }
+
+        if (($filters['outcome'] ?? '') !== '') {
+            $where[] = 'controls.outcome = :outcome';
+            $params['outcome'] = $filters['outcome'];
+        }
+
+        if (($filters['status'] ?? '') !== '') {
+            $where[] = 'controls.status = :status';
+            $params['status'] = $filters['status'];
+        }
+
+        if (($filters['sanction_presence'] ?? '') === '1') {
+            $where[] = 'controls.total_sanction_amount IS NOT NULL AND controls.total_sanction_amount > 0';
+        }
+
+        if (($filters['category_id'] ?? '') !== '') {
+            $joins[] = 'INNER JOIN control_activity_category filter_categories ON filter_categories.control_id = controls.id';
+            $where[] = 'filter_categories.activity_category_id = :category_id';
+            $params['category_id'] = (int) $filters['category_id'];
+        }
+
+        if (($filters['agent_id'] ?? '') !== '') {
+            $joins[] = 'INNER JOIN agent_control filter_agents ON filter_agents.control_id = controls.id';
+            $where[] = 'filter_agents.agent_id = :agent_id';
+            $params['agent_id'] = (int) $filters['agent_id'];
+        }
+
+        $sql = "SELECT DISTINCT controls.id,
+                    controls.registry_number,
+                    controls.registry_year,
+                    controls.control_date,
+                    COALESCE(events.name, 'Nessuno') AS event_name,
+                    controls.business_name,
+                    controls.business_location,
+                    controls.outcome,
+                    controls.status,
+                    controls.total_sanction_amount
+             FROM controls
+             " . implode(' ', $joins)
+            . ($where !== [] ? ' WHERE ' . implode(' AND ', $where) : '')
+            . ' ORDER BY controls.control_date DESC, controls.registry_number DESC LIMIT :limit';
+        $statement = Database::connection()->prepare($sql);
+
+        foreach ($params as $key => $value) {
+            $statement->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+
+        $statement->bindValue('limit', $limit, PDO::PARAM_INT);
+        $statement->execute();
+
+        return $statement->fetchAll();
+    }
+
     public function find(int $id): ?array
     {
         $statement = Database::connection()->prepare(

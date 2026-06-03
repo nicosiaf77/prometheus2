@@ -191,6 +191,12 @@ body {
   align-items: end;
 }
 
+.filter-form {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 10px;
+}
+
 .control-form {
   display: grid;
   gap: 14px;
@@ -264,7 +270,8 @@ body {
 }
 
 @media (max-width: 900px) {
-  .compact-form {
+  .compact-form,
+  .filter-form {
     grid-template-columns: 1fr;
   }
 

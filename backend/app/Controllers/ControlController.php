@@ -24,9 +24,17 @@ final class ControlController extends Controller
             return $response;
         }
 
-        $controls = (new ControlService())->latest();
+        $request = new Request();
+        $filters = $this->searchFilters($request);
+        $categories = (new ActivityCategoryService())->active();
+        $agents = (new AgentService())->all();
+        $events = (new EventService())->all();
+        $controls = (new ControlService())->search($filters);
         $flash = $this->flash();
         $flashHtml = $flash !== null ? '<div class="alert alert-success py-2">' . $this->e($flash) . '</div>' : '';
+        $categoryOptions = $this->optionsWithSelected($categories, 'id', 'name', $filters['category_id']);
+        $agentOptions = $this->agentOptionsWithSelected($agents, $filters['agent_id']);
+        $eventOptions = $this->options($events, 'name', 'name');
         $rows = '';
 
         foreach ($controls as $control) {
@@ -39,12 +47,13 @@ final class ControlController extends Controller
                 . '<td>' . $this->e($control['business_location']) . '</td>'
                 . '<td>' . $this->e($control['outcome']) . '</td>'
                 . '<td>' . $this->e($control['status']) . '</td>'
+                . '<td>EUR ' . $this->e($control['total_sanction_amount'] ?? '0.00') . '</td>'
                 . '<td><a class="btn btn-sm btn-outline-secondary" href="/controls/' . $this->e($control['id']) . '">Apri</a></td>'
                 . '</tr>';
         }
 
         if ($rows === '') {
-            $rows = '<tr><td colspan="8" class="text-muted">Nessun controllo inserito.</td></tr>';
+            $rows = '<tr><td colspan="9" class="text-muted">Nessun controllo trovato.</td></tr>';
         }
 
         $content = <<<HTML
@@ -52,14 +61,57 @@ final class ControlController extends Controller
             <div class="page-title">
                 <div>
                     <h1>Ricerca controlli</h1>
-                    <p>Elenco iniziale degli ultimi controlli inseriti.</p>
+                    <p>Filtri operativi sui controlli inseriti.</p>
                 </div>
                 <a class="btn btn-sm btn-primary" href="/controls/create">Nuovo controllo</a>
             </div>
             {$flashHtml}
+            <div class="panel mb-3">
+                <form method="get" action="/controls" class="filter-form">
+                    <input class="form-control form-control-sm" name="registry_number" value="{$this->e($filters['registry_number'])}" placeholder="Numero">
+                    <input class="form-control form-control-sm" name="registry_year" value="{$this->e($filters['registry_year'])}" placeholder="Anno">
+                    <input class="form-control form-control-sm" type="date" name="date_from" value="{$this->e($filters['date_from'])}">
+                    <input class="form-control form-control-sm" type="date" name="date_to" value="{$this->e($filters['date_to'])}">
+                    <select class="form-select form-select-sm" name="has_event">
+                        {$this->selectOption('', 'Evento/sfuso', $filters['has_event'])}
+                        {$this->selectOption('0', 'Senza evento', $filters['has_event'])}
+                        {$this->selectOption('1', 'Con evento', $filters['has_event'])}
+                    </select>
+                    <input class="form-control form-control-sm" name="event_name" list="event_names" value="{$this->e($filters['event_name'])}" placeholder="Evento">
+                    <datalist id="event_names">{$eventOptions}</datalist>
+                    <input class="form-control form-control-sm" name="business_name" value="{$this->e($filters['business_name'])}" placeholder="Attivita">
+                    <input class="form-control form-control-sm" name="business_location" value="{$this->e($filters['business_location'])}" placeholder="Luogo">
+                    <select class="form-select form-select-sm" name="category_id">
+                        <option value="">Categoria</option>
+                        {$categoryOptions}
+                    </select>
+                    <select class="form-select form-select-sm" name="agent_id">
+                        <option value="">Agente</option>
+                        {$agentOptions}
+                    </select>
+                    <select class="form-select form-select-sm" name="outcome">
+                        {$this->selectOption('', 'Esito', $filters['outcome'])}
+                        {$this->selectOption('positivo', 'Positivo', $filters['outcome'])}
+                        {$this->selectOption('negativo', 'Negativo', $filters['outcome'])}
+                        {$this->selectOption('in_accertamento', 'In accertamento', $filters['outcome'])}
+                    </select>
+                    <select class="form-select form-select-sm" name="status">
+                        {$this->selectOption('', 'Stato', $filters['status'])}
+                        {$this->selectOption('bozza', 'Bozza', $filters['status'])}
+                        {$this->selectOption('validato', 'Validato', $filters['status'])}
+                        {$this->selectOption('annullato', 'Annullato', $filters['status'])}
+                    </select>
+                    <select class="form-select form-select-sm" name="sanction_presence">
+                        {$this->selectOption('', 'Sanzione', $filters['sanction_presence'])}
+                        {$this->selectOption('1', 'Con sanzione', $filters['sanction_presence'])}
+                    </select>
+                    <button class="btn btn-sm btn-primary" type="submit">Filtra</button>
+                    <a class="btn btn-sm btn-outline-secondary" href="/controls">Reset</a>
+                </form>
+            </div>
             <div class="panel">
                 <table class="table table-sm align-middle">
-                    <thead><tr><th>Registro</th><th>Data</th><th>Evento</th><th>Attivita</th><th>Luogo</th><th>Esito</th><th>Stato</th><th>Azioni</th></tr></thead>
+                    <thead><tr><th>Registro</th><th>Data</th><th>Evento</th><th>Attivita</th><th>Luogo</th><th>Esito</th><th>Stato</th><th>Sanzione</th><th>Azioni</th></tr></thead>
                     <tbody>{$rows}</tbody>
                 </table>
             </div>
@@ -461,6 +513,63 @@ final class ControlController extends Controller
             $value = $this->e($agent['id']);
             $label = $this->e(trim($agent['surname'] . ' ' . $agent['name']));
             $options .= "<option value=\"{$value}\">{$label}</option>";
+        }
+
+        return $options;
+    }
+
+    private function searchFilters(Request $request): array
+    {
+        return [
+            'registry_number' => $request->input('registry_number', '') ?? '',
+            'registry_year' => $request->input('registry_year', '') ?? '',
+            'date_from' => $request->input('date_from', '') ?? '',
+            'date_to' => $request->input('date_to', '') ?? '',
+            'has_event' => $request->input('has_event', '') ?? '',
+            'event_name' => $request->input('event_name', '') ?? '',
+            'business_name' => $request->input('business_name', '') ?? '',
+            'business_location' => $request->input('business_location', '') ?? '',
+            'category_id' => $request->input('category_id', '') ?? '',
+            'agent_id' => $request->input('agent_id', '') ?? '',
+            'outcome' => $request->input('outcome', '') ?? '',
+            'status' => $request->input('status', '') ?? '',
+            'sanction_presence' => $request->input('sanction_presence', '') ?? '',
+        ];
+    }
+
+    private function selectOption(string $value, string $label, string $selected): string
+    {
+        $selectedAttribute = $value === $selected ? ' selected' : '';
+
+        return '<option value="' . $this->e($value) . '"' . $selectedAttribute . '>' . $this->e($label) . '</option>';
+    }
+
+    private function optionsWithSelected(array $items, string $valueKey, string $labelKey, string $selected): string
+    {
+        $options = '';
+
+        foreach ($items as $item) {
+            $value = (string) $item[$valueKey];
+            $selectedAttribute = $value === $selected ? ' selected' : '';
+            $options .= '<option value="' . $this->e($value) . '"' . $selectedAttribute . '>' . $this->e($item[$labelKey]) . '</option>';
+        }
+
+        return $options;
+    }
+
+    private function agentOptionsWithSelected(array $agents, string $selected): string
+    {
+        $options = '';
+
+        foreach ($agents as $agent) {
+            if ((int) $agent['active'] !== 1) {
+                continue;
+            }
+
+            $value = (string) $agent['id'];
+            $label = trim($agent['surname'] . ' ' . $agent['name']);
+            $selectedAttribute = $value === $selected ? ' selected' : '';
+            $options .= '<option value="' . $this->e($value) . '"' . $selectedAttribute . '>' . $this->e($label) . '</option>';
         }
 
         return $options;
