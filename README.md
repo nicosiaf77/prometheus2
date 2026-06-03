@@ -26,7 +26,8 @@ cp .env.example .env
 composer serve
 ```
 
-Endpoint diagnostico: `http://localhost:8080/login`.
+Endpoint diagnostico locale: `http://localhost:8080/login`.
+Se il backend viene esposto su `0.0.0.0:8080`, usare l'host reale della macchina dal browser o da altri terminali/dispositivi.
 
 ## Database locale
 

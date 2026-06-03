@@ -37,7 +37,7 @@ composer install
 cp .env.example .env
 composer migrate
 composer seed
-php -S localhost:8080 -t public public/router.php
+php -S 0.0.0.0:8080 -t public public/router.php
 ```
 
 Oppure, se disponibile:

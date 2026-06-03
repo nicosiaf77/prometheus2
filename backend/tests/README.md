@@ -10,7 +10,7 @@ frontend dentro `backend/app`.
 cd /path/to/prometheus2/backend
 composer serve
 # oppure
-php -S localhost:8080 public/router.php
+php -S 0.0.0.0:8080 public/router.php
 ```
 
 ## Console manuale HTML/PHP
