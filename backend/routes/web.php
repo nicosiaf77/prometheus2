@@ -33,6 +33,7 @@ $router->get('/agents', [AgentController::class, 'index']);
 $router->post('/agents', [AgentController::class, 'store']);
 $router->get('/statistics', [StatisticsController::class, 'index']);
 $router->get('/reports', [ReportController::class, 'index']);
+$router->get('/reports/controls.csv', [ReportController::class, 'controlsCsv']);
 $router->get('/users', [UserController::class, 'index']);
 $router->get('/audit-logs', [AuditLogController::class, 'index']);
 $router->get('/backup', [BackupController::class, 'index']);

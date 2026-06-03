@@ -66,9 +66,12 @@ POST /agents
 ```text
 GET /statistics
 GET /reports
+GET /reports/controls.csv
 ```
 
 `GET /statistics` accetta filtri query `year`, `month`, `date_from`, `date_to`, `outcome` e restituisce dashboard HTML con aggregati backend.
+
+`GET /reports/controls.csv` esporta CSV controlli con gli stessi filtri principali di `GET /controls`, registra tabella `exports` e audit log. Permessi: amministratore, responsabile ufficio.
 
 ### Amministrazione
 
