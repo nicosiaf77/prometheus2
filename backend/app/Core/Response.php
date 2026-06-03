@@ -6,11 +6,18 @@ namespace Prometheus\Core;
 
 final class Response
 {
+    public string $body;
+    public int $status;
+    public array $headers;
+
     public function __construct(
-        public readonly string $body,
-        public readonly int $status = 200,
-        public readonly array $headers = ['Content-Type' => 'application/json; charset=UTF-8'],
+        string $body,
+        int $status = 200,
+        array $headers = ['Content-Type' => 'application/json; charset=UTF-8']
     ) {
+        $this->body = $body;
+        $this->status = $status;
+        $this->headers = $headers;
     }
 
     public static function json(array $data, int $status = 200): self

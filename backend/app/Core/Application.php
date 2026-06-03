@@ -6,8 +6,11 @@ namespace Prometheus\Core;
 
 final class Application
 {
-    public function __construct(private readonly string $basePath)
+    private string $basePath;
+
+    public function __construct(string $basePath)
     {
+        $this->basePath = $basePath;
         Env::load($this->basePath . '/.env');
 
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'OPTIONS') {
